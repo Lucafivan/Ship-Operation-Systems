@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
 
   // Cek token & fetch user saat app pertama kali load
-  useEffect(() => {
+  /*useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (token) {
       setIsAuthenticated(true);
@@ -38,6 +38,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
     }
   }, []);
+
+  */
 
   const login = () => {
     setIsAuthenticated(true);

@@ -45,7 +45,7 @@ const LoginPage: React.FC = () => {
       localStorage.setItem('access_token', response.data.access_token);
       
       login(); // Ubah status di AuthContext
-      navigate('/dashboard');
+      navigate('/vessels1');
 
     } catch (error) {
       toast.dismiss();

@@ -11,9 +11,10 @@ function MainLayout() {
         <Navbar />
         <div className="flex flex-1 overflow-hidden">
           <Sidebar />
-          <main className="flex-1 p-6 overflow-auto">
-            <Outlet />
-          </main>
+          <main className="flex-1 p-6 overflow-auto bg-gradient-to-br from-green-200 via-green-300 to-green-400">
+          <Outlet />
+        </main>
+
         </div>
       </div>
     </>
