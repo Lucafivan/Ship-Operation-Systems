@@ -52,6 +52,50 @@ class ContainerMovement(db.Model):
     __tablename__ = 'container_movements'
     id = db.Column(db.Integer, primary_key=True)
     voyage_id = db.Column(db.Integer, db.ForeignKey('voyages.id'), nullable=False, unique=True)
+
+    bongkaran_empty_20dc = db.Column(db.Integer, default=0)
+    bongkaran_empty_40hc = db.Column(db.Integer, default=0)
+    bongkaran_full_20dc = db.Column(db.Integer, default=0)
+    bongkaran_full_40hc = db.Column(db.Integer, default=0)
+
+    pengajuan_empty_20dc = db.Column(db.Integer, default=0)
+    pengajuan_empty_40hc = db.Column(db.Integer, default=0)
+    pengajuan_full_20dc = db.Column(db.Integer, default=0)
+    pengajuan_full_40hc = db.Column(db.Integer, default=0)
+
+    acc_pengajuan_empty_20dc = db.Column(db.Integer, default=0)
+    acc_pengajuan_empty_40hc = db.Column(db.Integer, default=0)
+    acc_pengajuan_full_20dc = db.Column(db.Integer, default=0)
+    acc_pengajuan_full_40hc = db.Column(db.Integer, default=0)
+
+    total_pengajuan_20dc = db.Column(db.Integer, default=0)
+    total_pengajuan_40hc = db.Column(db.Integer, default=0)
+    teus_pengajuan = db.Column(db.Integer, default=0)
+
+    realisasi_mxd_20dc = db.Column(db.Integer, default=0)
+    realisasi_mxd_40hc = db.Column(db.Integer, default=0)
+    realisasi_fxd_20dc = db.Column(db.Integer, default=0)
+    realisasi_fxd_40hc = db.Column(db.Integer, default=0)
+
+    shipside_yes_mxd_20dc = db.Column(db.Integer, default=0)
+    shipside_yes_mxd_40hc = db.Column(db.Integer, default=0)
+    shipside_yes_fxd_20dc = db.Column(db.Integer, default=0)
+    shipside_yes_fxd_40hc = db.Column(db.Integer, default=0)
+    shipside_no_mxd_20dc = db.Column(db.Integer, default=0)
+    shipside_no_mxd_40hc = db.Column(db.Integer, default=0)
+    shipside_no_fxd_20dc = db.Column(db.Integer, default=0)
+    shipside_no_fxd_40hc = db.Column(db.Integer, default=0)
+
+    total_realisasi_20dc = db.Column(db.Integer, default=0)
+    total_realisasi_40hc = db.Column(db.Integer, default=0)
+    teus_realisasi = db.Column(db.Integer, default=0)
+
+    turun_cy_20dc = db.Column(db.Integer, default=0)
+    turun_cy_40hc = db.Column(db.Integer, default=0)
+    teus_turun_cy = db.Column(db.Integer, default=0)
+
+    percentage_vessel = db.Column(db.Float, default=0)
+    obstacles = db.Column(db.Text)
     
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)

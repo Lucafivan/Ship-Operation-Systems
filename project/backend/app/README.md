@@ -11,7 +11,7 @@ Jika Anda belum memiliki file requirements.txt, jalankan perintah berikut:
 ```bash
 pip freeze | Out-File -FilePath requirements.txt -Encoding utf8
 ```
-Pastikan Anda telah membuat database PostgreSQL dengan nama early_warning dan kredensial yang sesuai.
+Pastikan Anda telah membuat database PostgreSQL dengan nama ship_operation_systems dan kredensial yang sesuai.
 
 ## Alur Kerja Migrasi Harian
 Ikuti langkah-langkah ini setiap kali Anda membuat perubahan pada model SQLAlchemy (app/models.py).
