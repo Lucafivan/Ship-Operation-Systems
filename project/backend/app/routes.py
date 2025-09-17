@@ -56,17 +56,26 @@ def get_voyages():
 def create_voyage():
     data = request.get_json()
     vessel_id = data.get('vessel_id')
-    voyage_no = data.get('voyage_no')
     voyage_yr = data.get('voyage_yr')
     berth_loc = data.get('berth_loc')
     date_berth = data.get('date_berth')
 
-    if not all([vessel_id, voyage_no, voyage_yr, date_berth]):
+    if not all([vessel_id, voyage_yr, date_berth]):
         return jsonify({"msg": "Semua field diperlukan"}), 400
+
+    last_voyage = Voyage.query.filter_by(vessel_id=vessel_id, voyage_yr=voyage_yr).order_by(Voyage.voyage_no.desc()).first()
+    if last_voyage:
+        try:
+            last_no = int(last_voyage.voyage_no)
+            next_voyage_no = str(last_no + 1)
+        except Exception:
+            next_voyage_no = "1"
+    else:
+        next_voyage_no = "1"
 
     new_voyage = Voyage(
         vessel_id=vessel_id,
-        voyage_no=voyage_no,
+        voyage_no=next_voyage_no,
         voyage_yr=voyage_yr,
         berth_loc=berth_loc,
         date_berth=date_berth

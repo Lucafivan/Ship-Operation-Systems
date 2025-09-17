@@ -32,10 +32,10 @@ const RealisasiPage: React.FC = () => {
 
   const fields = [
     { name: "id", label: "ID Container Movement", type: "number", placeholder: "Pilih ID dari daftar di atas" },
-    { name: "realisasi_mxd_20dc", label: "Realisasi MXD 20DC", type: "number", placeholder: "Jumlah (opsional)" },
-    { name: "realisasi_mxd_40hc", label: "Realisasi MXD 40HC", type: "number", placeholder: "Jumlah (opsional)" },
-    { name: "realisasi_fxd_20dc", label: "Realisasi FXD 20DC", type: "number", placeholder: "Jumlah (opsional)" },
-    { name: "realisasi_fxd_40hc", label: "Realisasi FXD 40HC", type: "number", placeholder: "Jumlah (opsional)" },
+    { name: "realisasi_mxd_20dc", label: "Realisasi MXD 20DC", type: "number", placeholder: "Jumlah" },
+    { name: "realisasi_mxd_40hc", label: "Realisasi MXD 40HC", type: "number", placeholder: "Jumlah" },
+    { name: "realisasi_fxd_20dc", label: "Realisasi FXD 20DC", type: "number", placeholder: "Jumlah" },
+    { name: "realisasi_fxd_40hc", label: "Realisasi FXD 40HC", type: "number", placeholder: "Jumlah" },
   ];
 
   const handleSubmit = async (data: Record<string, any>) => {
@@ -55,7 +55,7 @@ const RealisasiPage: React.FC = () => {
     try {
       await apiClient.post("/container_movements/realisasi", processedData);
       toast.success("Data realisasi berhasil diperbarui!");
-      navigate("/container-movements");
+      navigate("/shipside");
     } catch (err: any) {
       toast.error(err.response?.data?.msg || "Gagal memperbarui data.");
     }
@@ -66,7 +66,7 @@ const RealisasiPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-slate-100 p-4 rounded-lg mb-6 border">
           <h3 className="font-semibold mb-2">Data Container Movement yang Ada:</h3>
