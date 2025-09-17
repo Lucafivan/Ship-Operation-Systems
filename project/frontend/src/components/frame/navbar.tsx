@@ -13,16 +13,15 @@ function Navbar() {
       </div>
       <div className="flex items-center gap-4 ml-auto">
         <Link to="/monitoring">
-            <Button className="bg-gray-50 text-black px-2 py-1 h-auto w-auto">
+            <Button  type="button" variant="secondary">
               Monitoring
             </Button>
         </Link>
         <Link to="/vessel">
-          <Button className="bg-gray-50 text-black px-2 py-1 h-auto w-auto">
+          <Button  type="button" variant="primary">
             Tambah Vessel
           </Button>
         </Link>
-        <Navprofile />
       </div>
     </header>
   )

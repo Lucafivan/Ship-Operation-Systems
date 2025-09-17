@@ -59,7 +59,7 @@ function Sidebar() {
           </Link>
 
           <Link to="/pengajuan" state={{ keepSidebarOpen: true }} className={getLinkClass("/early-warning")}>
-            <Table size={20} className="shrink-0" />
+            <LayoutDashboard size={20} className="shrink-0" />
             <span
               className={`whitespace-nowrap overflow-hidden transition-all duration-200
                 ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}

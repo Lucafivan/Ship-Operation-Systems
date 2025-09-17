@@ -18,7 +18,7 @@ export const Button = ({
 
   // Tentukan gaya spesifik berdasarkan varian
   const variantStyles = {
-    primary: "bg-[#3a9542] hover:brightness-95",
+    primary: "bg-[#3a9542] text-white hover:brightness-95",
     secondary: "border border-[#3a9542] text-[#2b5b2f] bg-transparent hover:bg-green-50",
   };
 

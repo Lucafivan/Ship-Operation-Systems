@@ -74,8 +74,8 @@ const MonitoringVoyages: React.FC = () => {
       <h1 className="text-2xl font-bold mb-4">Monitoring Container Movements</h1>
       <div className="overflow-x-auto py-4">
         <table className="min-w-[1200px] w-full border border-black text-xs md:text-sm bg-white shadow rounded-lg">
-          <thead className="bg-green-200">
-        <tr>
+          <thead className="bg-green-700">
+        <tr className="text-white">
           <th className="p-2 border border-black" rowSpan={4}>Vessel</th>
           <th className="p-2 border border-black" rowSpan={4}>Voyage Number</th>
           <th className="p-2 border border-black" rowSpan={4}>Voyage Year</th>
@@ -94,7 +94,7 @@ const MonitoringVoyages: React.FC = () => {
           <th className="p-2 border border-black" rowSpan={4}>Created</th>
           <th className="p-2 border border-black" rowSpan={4}>Updated</th>
         </tr>
-        <tr>
+        <tr className="text-white">
           <th className="p-2 border border-black" colSpan={2}>Empty</th>
           <th className="p-2 border border-black" colSpan={2}>Full</th>
           <th className="p-2 border border-black" colSpan={2}>Empty</th>
@@ -112,7 +112,7 @@ const MonitoringVoyages: React.FC = () => {
           <th className="p-2 border border-black" colSpan={2}>Box</th>
           <th className="p-2 border border-black" rowSpan={3}>Teus Turun CY</th>
         </tr>
-        <tr>
+        <tr className="text-white">
           <th className="p-2 border border-black" rowSpan={2}>20DC</th>
           <th className="p-2 border border-black" rowSpan={2}>40HC</th>
           <th className="p-2 border border-black" rowSpan={2}>20DC</th>
@@ -140,7 +140,7 @@ const MonitoringVoyages: React.FC = () => {
           <th className="p-2 border border-black" rowSpan={2}>20DC</th>
           <th className="p-2 border border-black" rowSpan={2}>40HC</th>
         </tr>
-        <tr>
+        <tr className="text-white">
           <th className="p-2 border border-black">20DC</th>
           <th className="p-2 border border-black">40HC</th>
           <th className="p-2 border border-black">20DC</th>
