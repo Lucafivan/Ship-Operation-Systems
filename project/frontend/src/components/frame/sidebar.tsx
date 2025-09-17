@@ -32,42 +32,23 @@ function Sidebar() {
   };
 
   return (
-    // Shell kecil agar konten tidak bergeser
     <aside
       onMouseEnter={() => setExpanded(true)}
-      className="relative w-16 p-0 h-screen text-gray-100"
+      onMouseLeave={() => setExpanded(false)}
+      className={`h-screen text-gray-100 transition-all duration-200 ease-out will-change-[width] bg-[#16332f] shadow-xl ring-1 ring-black/20 flex flex-col ${expanded ? "w-60 p-4" : "w-16 p-2"}`}
     >
-      {/* Panel tunggal: melebar dari w-16 -> w-60 */}
-      <div
-        onMouseLeave={() => setExpanded(false)}
-        className={`absolute inset-y-0 left-0 z-40 overflow-hidden
-          rounded-r-2xl shadow-xl ring-1 ring-black/20
-          bg-[#16332f]
-          transition-all duration-200 ease-out will-change-[width]
-          ${expanded ? "w-60 p-4" : "w-16 p-2"}`}
-      >
-        <nav className="flex flex-col gap-2 h-full">
-          <Link to="/Vessels1" state={{ keepSidebarOpen: true }} className={getLinkClass("/dashboard")}>
+      <nav className="flex flex-col gap-2 h-full">
+          <Link to="/voyage" state={{ keepSidebarOpen: true }} className={getLinkClass("/dashboard")}>
             <LayoutDashboard size={20} className="shrink-0" />
             <span
               className={`whitespace-nowrap overflow-hidden transition-all duration-200
                 ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
             >
-              Vessel
+              Voyage
             </span>
           </Link>
 
-          <Link to="/Voyages2" state={{ keepSidebarOpen: true }} className={getLinkClass("/dashboard")}>
-            <LayoutDashboard size={20} className="shrink-0" />
-            <span
-              className={`whitespace-nowrap overflow-hidden transition-all duration-200
-                ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
-            >
-              Voyages
-            </span>
-          </Link>
-
-          <Link to="/bongkaran3" state={{ keepSidebarOpen: true }} className={getLinkClass("/dashboard")}>
+          <Link to="/bongkaran" state={{ keepSidebarOpen: true }} className={getLinkClass("/dashboard")}>
             <LayoutDashboard size={20} className="shrink-0" />
             <span
               className={`whitespace-nowrap overflow-hidden transition-all duration-200
@@ -77,7 +58,7 @@ function Sidebar() {
             </span>
           </Link>
 
-          <Link to="/pengajuan4" state={{ keepSidebarOpen: true }} className={getLinkClass("/early-warning")}>
+          <Link to="/pengajuan" state={{ keepSidebarOpen: true }} className={getLinkClass("/early-warning")}>
             <Table size={20} className="shrink-0" />
             <span
               className={`whitespace-nowrap overflow-hidden transition-all duration-200
@@ -87,7 +68,7 @@ function Sidebar() {
             </span>
           </Link>
 
-          <Link to="/acc_pengajuan5" state={{ keepSidebarOpen: true }} className={getLinkClass("/report")}>
+          <Link to="/acc_pengajuan" state={{ keepSidebarOpen: true }} className={getLinkClass("/report")}>
             <Target size={20} className="shrink-0" />
             <span
               className={`whitespace-nowrap overflow-hidden transition-all duration-200
@@ -97,7 +78,7 @@ function Sidebar() {
             </span>
           </Link>
 
-          <Link to="/realisasi6" state={{ keepSidebarOpen: true }} className={getLinkClass("/report")}>
+          <Link to="/realisasi" state={{ keepSidebarOpen: true }} className={getLinkClass("/report")}>
             <Target size={20} className="shrink-0" />
             <span
               className={`whitespace-nowrap overflow-hidden transition-all duration-200
@@ -107,13 +88,13 @@ function Sidebar() {
             </span>
           </Link>
 
-          <Link to="/shipside7" state={{ keepSidebarOpen: true }} className={getLinkClass("/report")}>
+          <Link to="/shipside" state={{ keepSidebarOpen: true }} className={getLinkClass("/report")}>
             <Target size={20} className="shrink-0" />
             <span
               className={`whitespace-nowrap overflow-hidden transition-all duration-200
                 ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
             >
-              Realisasi
+              Shipside
             </span>
           </Link>
 
@@ -131,7 +112,6 @@ function Sidebar() {
             </span>
           </button>
         </nav>
-      </div>
     </aside>
   );
 }

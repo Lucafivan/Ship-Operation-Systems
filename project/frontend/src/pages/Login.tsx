@@ -44,8 +44,8 @@ const LoginPage: React.FC = () => {
       // SAVE TOKEN -> Buat get data
       localStorage.setItem('access_token', response.data.access_token);
       
-      login(); // Ubah status di AuthContext
-      navigate('/vessels1');
+      login(response.data.access_token, response.data.refresh_token);
+      navigate('/voyage');
 
     } catch (error) {
       toast.dismiss();

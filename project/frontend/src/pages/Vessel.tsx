@@ -1,5 +1,5 @@
 import React from "react";
-import apiClient from "../api/axios"; // <-- GUNAKAN IMPORT INI
+import apiClient from "../api/axios";
 import DynamicForm from "../components/dynamicform";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
@@ -20,7 +20,7 @@ const VesselPage: React.FC = () => {
 
       console.log("Response:", res.data);
       toast.success("Vessel berhasil dibuat");
-      navigate("/voyages2")
+      navigate("/voyage")
     } catch (err: any) {
       console.error("Error submit:", err.response || err);
       toast.error(err.response?.data?.msg || "Gagal membuat vessel");
@@ -28,7 +28,7 @@ const VesselPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="h-full flex items-center justify-center">
       <DynamicForm title="Form Vessel" fields={fields} onSubmit={handleSubmit} buttonText="Simpan" />
     </div>
   );

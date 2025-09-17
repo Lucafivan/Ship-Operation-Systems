@@ -10,9 +10,19 @@ def get_container_movements():
     container_movements = ContainerMovement.query.all()
     container_movements_list = []
     for cm in container_movements:
+        vessel_name = cm.voyage.vessel.name if cm.voyage and cm.voyage.vessel else None
+        voyage_number = cm.voyage.voyage_no if cm.voyage else None
+        voyage_year = cm.voyage.voyage_yr if cm.voyage else None
+        voyage_berth_loc = cm.voyage.berth_loc if cm.voyage else None
+        voyage_date_berth = cm.voyage.date_berth.isoformat() if cm.voyage and cm.voyage.date_berth else None
         container_movements_list.append({
             "id": cm.id,
             "voyage_id": cm.voyage_id,
+            "vessel_name": vessel_name,
+            "voyage_number": voyage_number,
+            "voyage_year": voyage_year,
+            "voyage_berth_loc": voyage_berth_loc,
+            "voyage_date_berth": voyage_date_berth,
             "bongkaran_empty_20dc": cm.bongkaran_empty_20dc,
             "bongkaran_empty_40hc": cm.bongkaran_empty_40hc,
             "bongkaran_full_20dc": cm.bongkaran_full_20dc,
