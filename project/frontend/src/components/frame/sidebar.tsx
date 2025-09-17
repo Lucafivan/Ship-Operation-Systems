@@ -38,63 +38,33 @@ function Sidebar() {
       className={`h-screen text-gray-100 transition-all duration-200 ease-out will-change-[width] bg-[#16332f] shadow-xl ring-1 ring-black/20 flex flex-col ${expanded ? "w-60 p-4" : "w-16 p-2"}`}
     >
       <nav className="flex flex-col gap-2 h-full">
-          <Link to="/voyage" state={{ keepSidebarOpen: true }} className={getLinkClass("/dashboard")}>
+          <Link to="/monitoring" state={{ keepSidebarOpen: true }} className={getLinkClass("/monitoring")}>
             <LayoutDashboard size={20} className="shrink-0" />
             <span
               className={`whitespace-nowrap overflow-hidden transition-all duration-200
                 ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
             >
-              Voyage
+              Monitoring Voyages
             </span>
           </Link>
 
-          <Link to="/bongkaran" state={{ keepSidebarOpen: true }} className={getLinkClass("/dashboard")}>
+          <Link to="/vessel" state={{ keepSidebarOpen: true }} className={getLinkClass("/vessel")}>
             <LayoutDashboard size={20} className="shrink-0" />
             <span
               className={`whitespace-nowrap overflow-hidden transition-all duration-200
                 ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
             >
-              Bongkaran
+              Vessel
             </span>
           </Link>
 
-          <Link to="/pengajuan" state={{ keepSidebarOpen: true }} className={getLinkClass("/early-warning")}>
+          <Link to="/port" state={{ keepSidebarOpen: true }} className={getLinkClass("/port")}>
             <LayoutDashboard size={20} className="shrink-0" />
             <span
               className={`whitespace-nowrap overflow-hidden transition-all duration-200
                 ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
             >
-              Pengajuan
-            </span>
-          </Link>
-
-          <Link to="/acc_pengajuan" state={{ keepSidebarOpen: true }} className={getLinkClass("/report")}>
-            <Target size={20} className="shrink-0" />
-            <span
-              className={`whitespace-nowrap overflow-hidden transition-all duration-200
-                ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
-            >
-              Acc Pengajuan
-            </span>
-          </Link>
-
-          <Link to="/realisasi" state={{ keepSidebarOpen: true }} className={getLinkClass("/report")}>
-            <Target size={20} className="shrink-0" />
-            <span
-              className={`whitespace-nowrap overflow-hidden transition-all duration-200
-                ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
-            >
-              Realisasi
-            </span>
-          </Link>
-
-          <Link to="/shipside" state={{ keepSidebarOpen: true }} className={getLinkClass("/report")}>
-            <Target size={20} className="shrink-0" />
-            <span
-              className={`whitespace-nowrap overflow-hidden transition-all duration-200
-                ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
-            >
-              Shipside
+              Port
             </span>
           </Link>
 
