@@ -37,10 +37,10 @@ const AccPengajuanPage: React.FC = () => {
   // 2. Definisikan field untuk DynamicForm
   const fields = [
     { name: "id", label: "ID Container Movement", type: "number", placeholder: "Pilih ID dari daftar di atas" },
-    { name: "acc_pengajuan_empty_20dc", label: "ACC Pengajuan Empty 20DC", type: "number", placeholder: "Jumlah (opsional)" },
-    { name: "acc_pengajuan_empty_40hc", label: "ACC Pengajuan Empty 40HC", type: "number", placeholder: "Jumlah (opsional)" },
-    { name: "acc_pengajuan_full_20dc", label: "ACC Pengajuan Full 20DC", type: "number", placeholder: "Jumlah (opsional)" },
-    { name: "acc_pengajuan_full_40hc", label: "ACC Pengajuan Full 40HC", type: "number", placeholder: "Jumlah (opsional)" },
+    { name: "acc_pengajuan_empty_20dc", label: "ACC Pengajuan Empty 20DC", type: "number", placeholder: "Jumlah" },
+    { name: "acc_pengajuan_empty_40hc", label: "ACC Pengajuan Empty 40HC", type: "number", placeholder: "Jumlah" },
+    { name: "acc_pengajuan_full_20dc", label: "ACC Pengajuan Full 20DC", type: "number", placeholder: "Jumlah" },
+    { name: "acc_pengajuan_full_40hc", label: "ACC Pengajuan Full 40HC", type: "number", placeholder: "Jumlah" },
   ];
 
   // 3. Fungsi untuk menangani submit form
@@ -61,7 +61,7 @@ const AccPengajuanPage: React.FC = () => {
     try {
       const res = await apiClient.post("/container_movements/acc_pengajuan", processedData);
       toast.success("Data ACC Pengajuan berhasil diperbarui!");
-      navigate("/container-movements"); // Arahkan kembali ke halaman daftar
+      navigate("/realisasi"); // Arahkan kembali ke halaman daftar
     } catch (err: any) {
       console.error("Error submit:", err.response || err);
       toast.error(err.response?.data?.msg || "Gagal memperbarui data.");
@@ -73,7 +73,7 @@ const AccPengajuanPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         
         <div className="bg-slate-100 p-4 rounded-lg mb-6 border border-slate-200">

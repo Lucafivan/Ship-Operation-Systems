@@ -33,7 +33,6 @@ const VoyagePage: React.FC = () => {
 
   const fields = [
     { name: "vessel_id", label: "Vessel ID", type: "number", placeholder: "Masukkan ID Vessel (lihat daftar)" },
-    { name: "voyage_no", label: "Nomor Voyage", type: "text", placeholder: "Masukkan nomor voyage" },
     { name: "voyage_yr", label: "Tahun Voyage", type: "number", placeholder: "Contoh: 2025" },
     { name: "berth_loc", label: "Lokasi Sandar", type: "text", placeholder: "Masukkan lokasi sandar" },
     { name: "date_berth", label: "Tanggal Sandar", type: "date" },
@@ -44,7 +43,7 @@ const VoyagePage: React.FC = () => {
       const res = await apiClient.post("/voyages", data);
       console.log("Response:", res.data);
       toast.success("Voyage berhasil dibuat!");
-      navigate("/bongkaran3");
+      navigate("/bongkaran");
     } catch (err: any) {
       console.error("Error submit:", err.response || err);
       toast.error(err.response?.data?.msg || "Gagal membuat voyage.");
@@ -58,7 +57,7 @@ const VoyagePage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         
         {/* 5. MODIFIKASI BAGIAN DAFTAR VESSEL */}

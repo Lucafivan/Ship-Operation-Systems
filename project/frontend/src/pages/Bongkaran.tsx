@@ -56,10 +56,10 @@ const BongkaranPage: React.FC = () => {
   // 2. Definisikan field untuk DynamicForm
   const fields = [
     { name: "voyage_id", label: "Voyage ID", type: "number", placeholder: "Pilih ID Voyage dari daftar di atas" },
-    { name: "bongkaran_empty_20dc", label: "Bongkaran Empty 20DC", type: "number", placeholder: "Jumlah (opsional)" },
-    { name: "bongkaran_empty_40hc", label: "Bongkaran Empty 40HC", type: "number", placeholder: "Jumlah (opsional)" },
-    { name: "bongkaran_full_20dc", label: "Bongkaran Full 20DC", type: "number", placeholder: "Jumlah (opsional)" },
-    { name: "bongkaran_full_40hc", label: "Bongkaran Full 40HC", type: "number", placeholder: "Jumlah (opsional)" },
+    { name: "bongkaran_empty_20dc", label: "Bongkaran Empty 20DC", type: "number", placeholder: "Jumlah" },
+    { name: "bongkaran_empty_40hc", label: "Bongkaran Empty 40HC", type: "number", placeholder: "Jumlah" },
+    { name: "bongkaran_full_20dc", label: "Bongkaran Full 20DC", type: "number", placeholder: "Jumlah" },
+    { name: "bongkaran_full_40hc", label: "Bongkaran Full 40HC", type: "number", placeholder: "Jumlah" },
   ];
 
   // 3. Fungsi untuk menangani submit form
@@ -77,7 +77,7 @@ const BongkaranPage: React.FC = () => {
       // Asumsi cm_bp didaftarkan dengan prefix /container_movements
       const res = await apiClient.post("/container_movements/bongkaran", processedData);
       toast.success("Data bongkaran berhasil dibuat!");
-      navigate("/pengajuan2"); // Arahkan ke halaman daftar setelah sukses
+      navigate("/pengajuan"); // Arahkan ke halaman daftar setelah sukses
     } catch (err: any) {
       console.error("Error submit:", err.response || err);
       toast.error(err.response?.data?.msg || "Gagal menyimpan data bongkaran.");
@@ -89,7 +89,7 @@ const BongkaranPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         
         {/* Bantuan untuk Pengguna */}

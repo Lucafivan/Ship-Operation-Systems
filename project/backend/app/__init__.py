@@ -21,13 +21,16 @@ BLOCKLIST = set()
 def create_app():
     app = Flask(__name__)
 
+    from .clean_db import register_commands
+    register_commands(app)
+
     # Konfigurasi
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'fallback-secret-key-yang-tidak-aman')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgresql://user:pass@host/db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'fallback-jwt-secret-key-yang-tidak-aman')
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(minutes=15)
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(minutes=60)
     app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
 
     app.config["JWT_BLACKLIST_ENABLED"] = True

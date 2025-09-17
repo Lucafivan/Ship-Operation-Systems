@@ -74,7 +74,7 @@ function Sidebar() {
               className={`whitespace-nowrap overflow-hidden transition-all duration-200
                 ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
             >
-              Acc-Pengajuan
+              Acc Pengajuan
             </span>
           </Link>
 
