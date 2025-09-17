@@ -109,3 +109,5 @@ const VoyagePage: React.FC = () => {
     </div>
   );
 };
+
+export default VoyagePage;
