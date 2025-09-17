@@ -1,12 +1,11 @@
-// src/pages/VoyagePage.tsx
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../api/axios";
-import DynamicForm from "../components/dynamicform"; // Impor DynamicForm Anda yang ada
+import DynamicForm from "../components/dynamicform";
 import toast from "react-hot-toast";
+import Modal from "../components/modals";
+import Table from "../components/tables/tables"; 
 
-// Definisikan tipe data untuk Vessel
 interface Vessel {
   id: number;
   name: string;
@@ -15,8 +14,10 @@ interface Vessel {
 const VoyagePage: React.FC = () => {
   const navigate = useNavigate();
   const [vessels, setVessels] = useState<Vessel[]>([]);
+  
+  // 3. TAMBAHKAN STATE UNTUK MENGONTROL MODAL
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // 1. Tetap ambil data vessels untuk ditampilkan sebagai referensi
   useEffect(() => {
     const fetchVessels = async () => {
       try {
@@ -27,43 +28,57 @@ const VoyagePage: React.FC = () => {
         toast.error("Gagal memuat daftar vessel.");
       }
     };
-
     fetchVessels();
   }, []);
 
-  // 2. Definisikan field untuk DynamicForm menggunakan input biasa
   const fields = [
-    { name: "vessel_id", label: "Vessel ID", type: "number", placeholder: "Masukkan ID Vessel (lihat daftar di atas)" },
+    { name: "vessel_id", label: "Vessel ID", type: "number", placeholder: "Masukkan ID Vessel (lihat daftar)" },
     { name: "voyage_no", label: "Nomor Voyage", type: "text", placeholder: "Masukkan nomor voyage" },
     { name: "voyage_yr", label: "Tahun Voyage", type: "number", placeholder: "Contoh: 2025" },
     { name: "berth_loc", label: "Lokasi Sandar", type: "text", placeholder: "Masukkan lokasi sandar" },
     { name: "date_berth", label: "Tanggal Sandar", type: "date" },
   ];
 
-  // 3. Fungsi handleSubmit tetap sama
   const handleSubmit = async (data: Record<string, any>) => {
     try {
-      // Data sudah otomatis diubah jadi angka oleh DynamicForm Anda
       const res = await apiClient.post("/voyages", data);
       console.log("Response:", res.data);
       toast.success("Voyage berhasil dibuat!");
-      navigate("/bongkaran3"); // Opsional: arahkan ke halaman lain
+      navigate("/bongkaran3");
     } catch (err: any) {
       console.error("Error submit:", err.response || err);
       toast.error(err.response?.data?.msg || "Gagal membuat voyage.");
     }
   };
 
+  // 4. Definisikan header untuk tabel di dalam modal
+  const vesselTableHeaders = [
+    { key: 'id', label: 'ID' },
+    { key: 'name', label: 'Nama Vessel' }
+  ];
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-
-        {/* DAFTAR VESSEL TES AJA*/}
+        
+        {/* 5. MODIFIKASI BAGIAN DAFTAR VESSEL */}
         <div className="bg-slate-100 p-4 rounded-lg mb-6 border border-slate-200">
-          <h3 className="font-semibold text-gray-700 mb-2">Daftar Vessel Tersedia:</h3>
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="font-semibold text-gray-700">Daftar Vessel Tersedia:</h3>
+            {/* Tampilkan tombol hanya jika data lebih dari 5 */}
+            {vessels.length > 5 && (
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="text-sm text-green-600 hover:underline font-semibold"
+              >
+                Lihat Semua
+              </button>
+            )}
+          </div>
           {vessels.length > 0 ? (
+            // Tampilkan hanya 5 item pertama
             <ul className="list-disc list-inside text-sm text-gray-600">
-              {vessels.map((vessel) => (
+              {vessels.slice(0, 5).map((vessel) => (
                 <li key={vessel.id}>
                   <strong>{vessel.name}</strong> (ID: {vessel.id})
                 </li>
@@ -74,7 +89,6 @@ const VoyagePage: React.FC = () => {
           )}
         </div>
 
-        {/* Form Dinamis Anda */}
         <DynamicForm
           title="Form Tambah Voyage Baru"
           fields={fields}
@@ -83,6 +97,15 @@ const VoyagePage: React.FC = () => {
         />
         
       </div>
+
+      {/* 6. TAMBAHKAN KOMPONEN MODAL DI SINI */}
+      <Modal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        title="Semua Vessel Tersedia"
+      >
+        <Table headers={vesselTableHeaders} data={vessels} />
+      </Modal>
     </div>
   );
 };
