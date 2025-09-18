@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import apiClient from "../api/axios";
 import { Button } from "../components/ui/Button";
 import Modal from "../components/modals";
+import EditContainerMovementModal from "../components/modals/EditContainerMovementModal";
 import VoyageForm from "../components/form/voyagesform";
 import toast from "react-hot-toast";
 
@@ -53,16 +54,14 @@ interface ContainerMovement {
 }
 
 const MonitoringVoyages: React.FC = () => {
-
   const [isModalOpen, setIsModalOpen] = useState(false);
-
   const [data, setData] = useState<ContainerMovement[]>([]);
   const [loading, setLoading] = useState(true);
-  // Date filter state
+  
   type DatePreset = 'all' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom';
   const [datePreset, setDatePreset] = useState<DatePreset>('all');
-  const [customStart, setCustomStart] = useState<string>(''); // YYYY-MM-DD
-  const [customEnd, setCustomEnd] = useState<string>('');     // YYYY-MM-DD
+  const [customStart, setCustomStart] = useState<string>('');
+  const [customEnd, setCustomEnd] = useState<string>('');
   type SortKey =
     | "vessel_name"
     | "voyage_number"
@@ -76,6 +75,19 @@ const MonitoringVoyages: React.FC = () => {
     direction: "asc" | "desc";
   } | null>(null);
 
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingRow, setEditingRow] = useState<ContainerMovement | null>(null);
+
+  const openEdit = (row: ContainerMovement) => {
+    setEditingRow(row);
+    setIsEditOpen(true);
+  };
+
+  const closeEdit = () => {
+    setIsEditOpen(false);
+    setEditingRow(null);
+  };
+
   const requestSort = (key: SortKey) => {
     setSortConfig((prev) => {
       if (prev && prev.key === key) {
@@ -86,14 +98,13 @@ const MonitoringVoyages: React.FC = () => {
   };
 
   const filteredData = useMemo(() => {
-    // Compute [start, end] dates depending on preset
     if (datePreset === 'all') return data;
-  const now = new Date();
+    const now = new Date();
 
     const startOfWeek = (d: Date) => {
       const dt = new Date(d);
-      const day = dt.getDay(); // 0=Sun,1=Mon,...
-      const diffToMon = (day + 6) % 7; // days since Monday
+      const day = dt.getDay();
+      const diffToMon = (day + 6) % 7;
       dt.setHours(0, 0, 0, 0);
       dt.setDate(dt.getDate() - diffToMon);
       return dt;
@@ -161,7 +172,6 @@ const MonitoringVoyages: React.FC = () => {
         const ts = v ? Date.parse(String(v)) : NaN;
         return isNaN(ts) ? -Infinity : ts;
       }
-      // string-ish compare, case-insensitive
       return v == null ? "" : String(v).toLowerCase();
     };
     return [...filteredData].sort((a, b) => {
@@ -174,7 +184,6 @@ const MonitoringVoyages: React.FC = () => {
   }, [filteredData, sortConfig]);
 
   const fetchData = async () => {
-    // Set loading ke true setiap kali data baru diambil
     setLoading(true);
     try {
       const res = await apiClient.get<ContainerMovement[]>("/container_movements/");
@@ -188,21 +197,12 @@ const MonitoringVoyages: React.FC = () => {
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await apiClient.get("/container_movements/");
-        setData(res.data);
-      } catch (err) {
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, []);
 
   const handleSuccess = () => {
-    setIsModalOpen(false); // Tutup modal
-    fetchData(); // Ambil ulang data terbaru
+    setIsModalOpen(false);
+    fetchData();
   };
 
   if (loading)
@@ -212,13 +212,11 @@ const MonitoringVoyages: React.FC = () => {
 
   return (
     <>
-            <div className="overflow-x-auto py-4">
-              <h1 className="text-2xl font-semibold mb-4 text-slate-800">
-                Monitoring Voyages
-              </h1>
-
+      <div className="overflow-x-auto py-4">
+        <h1 className="text-2xl font-semibold mb-4 text-slate-800">
+          Monitoring Voyages
+        </h1>
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          {/* Bagian kiri: filter */}
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-col px-1">
               <label className="text-xs text-slate-600">Date Filter</label>
@@ -269,38 +267,30 @@ const MonitoringVoyages: React.FC = () => {
             >
               Reset
             </button>
-
-          
           </div>
-
-           {/* Filter di sini */}
-            <div className="flex justify-start">
-              <Button
-
-                onClick={() => setIsModalOpen(true)}
-                type="button"
-                variant="primary"
-              >
-                Tambah Data
-              </Button>
-            </div>
-
-             {/* Modal Form */}
-            <Modal
-              isOpen={isModalOpen}
-              onClose={() => setIsModalOpen(false)}
-              title="Tambah Voyage Baru"
+          <div className="flex justify-start">
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              type="button"
+              variant="primary"
             >
-              {/* 3. Gunakan handleSuccess pada prop onSuccess */}
-              <VoyageForm onSuccess={handleSuccess} />
+              Tambah Data
+            </Button>
+          </div>
+          <Modal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            title="Tambah Voyage Baru"
+          >
+            <VoyageForm onSuccess={handleSuccess} />
           </Modal>
-              </div>
+        </div>
       </div>
-
       <div className="overflow-x-auto py-4">
         <table className="min-w-[1200px] w-full text-xs md:text-sm bg-white shadow-lg rounded-xl ring-1 ring-slate-200">
           <thead className="bg-gradient-to-r from-green-700 to-emerald-600">
         <tr className="text-white">
+          <th className="p-2 border border-slate-200/30" rowSpan={4}>Action</th>
           <th className="p-2 border border-slate-200/30" rowSpan={4} aria-sort={sortConfig?.key === "vessel_name" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
             <button onClick={() => requestSort("vessel_name")} className="flex items-center gap-1 hover:opacity-90">
               Vessel
@@ -414,6 +404,15 @@ const MonitoringVoyages: React.FC = () => {
           <tbody>
         {sortedData.map((row) => (
           <tr key={row.id} className="even:bg-emerald-50 hover:bg-emerald-100/60 transition-colors">
+            <td className="p-2 border border-slate-200 text-center">
+              <button
+                onClick={() => openEdit(row)}
+                className="text-emerald-700 hover:text-emerald-800 hover:underline text-[11px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-400 rounded-sm px-1 py-0.5"
+                type="button"
+              >
+                Edit
+              </button>
+            </td>
             <td className="p-2 border border-slate-200">{row.vessel_name}</td>
             <td className="p-2 border border-slate-200">{row.voyage_number}</td>
             <td className="p-2 border border-slate-200">{row.voyage_year}</td>
@@ -473,6 +472,12 @@ const MonitoringVoyages: React.FC = () => {
           </tbody>
         </table>
       </div>
+      <EditContainerMovementModal
+        isOpen={isEditOpen}
+        onClose={closeEdit}
+        row={editingRow}
+        onUpdated={fetchData}
+      />
     </>
   );
 };
