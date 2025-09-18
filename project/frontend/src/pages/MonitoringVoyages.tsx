@@ -190,7 +190,7 @@ const MonitoringVoyages: React.FC = () => {
         <h1 className="text-2xl font-semibold mb-4 text-slate-800">Monitoring Voyages</h1>
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="flex flex-wrap items-end gap-3">
-            <div className="flex flex-col">
+            <div className="flex flex-col px-1">
               <label className="text-xs text-slate-600">Date Filter</label>
               <select
                 value={datePreset}
@@ -213,7 +213,7 @@ const MonitoringVoyages: React.FC = () => {
                     type="date"
                     value={customStart}
                     onChange={(e) => setCustomStart(e.target.value)}
-                    className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm shadow hover:bg-slate-200"
                   />
                 </div>
                 <div className="flex flex-col">
@@ -222,16 +222,14 @@ const MonitoringVoyages: React.FC = () => {
                     type="date"
                     value={customEnd}
                     onChange={(e) => setCustomEnd(e.target.value)}
-                    className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm shadow hover:bg-slate-200"
                   />
                 </div>
               </>
             )}
-          </div>
-          <div className="flex items-center gap-2">
             <button
               onClick={() => { setDatePreset('all'); setCustomStart(''); setCustomEnd(''); }}
-              className="rounded-md bg-slate-100 px-3 py-1.5 text-sm text-slate-700 shadow hover:bg-slate-200"
+              className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm shadow hover:bg-slate-200"
             >
               Reset
             </button>
