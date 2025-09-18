@@ -1,9 +1,7 @@
-// src/pages/ShipsidePage.tsx
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../api/axios";
-import DynamicForm from "../components/dynamicform";
+import DynamicForm from "../components/form/dynamicform";
 import toast from "react-hot-toast";
 
 interface ContainerMovementReference {
@@ -65,7 +63,7 @@ const ShipsidePage: React.FC = () => {
     try {
       await apiClient.post("/container_movements/shipside", processedData);
       toast.success("Data shipside berhasil diperbarui!");
-      navigate("/voyage");
+      navigate("/container-movements");
     } catch (err: any) {
       toast.error(err.response?.data?.msg || "Gagal memperbarui data.");
     }
@@ -76,7 +74,7 @@ const ShipsidePage: React.FC = () => {
   }
 
   return (
-    <div className="flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-slate-100 p-4 rounded-lg mb-6 border">
           <h3 className="font-semibold mb-2">Data Container Movement yang Ada:</h3>

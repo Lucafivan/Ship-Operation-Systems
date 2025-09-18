@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../api/axios";
-import DynamicForm from "../components/dynamicform";
+import DynamicForm from "../components/form/dynamicform";
 import toast from "react-hot-toast";
 
 interface ContainerMovementReference {

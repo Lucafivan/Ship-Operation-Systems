@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import apiClient from "../api/axios";
+import { Button } from "../components/ui/Button";
+import Modal from "../components/modals";
+import VoyageForm from "../components/form/voyagesform";
+import toast from "react-hot-toast";
 
 interface ContainerMovement {
   id: number;
@@ -49,6 +53,9 @@ interface ContainerMovement {
 }
 
 const MonitoringVoyages: React.FC = () => {
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const [data, setData] = useState<ContainerMovement[]>([]);
   const [loading, setLoading] = useState(true);
   // Date filter state
@@ -166,6 +173,20 @@ const MonitoringVoyages: React.FC = () => {
     });
   }, [filteredData, sortConfig]);
 
+  const fetchData = async () => {
+    // Set loading ke true setiap kali data baru diambil
+    setLoading(true);
+    try {
+      const res = await apiClient.get<ContainerMovement[]>("/container_movements/");
+      setData(res.data);
+    } catch (err) {
+      toast.error("Gagal memuat data monitoring.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -179,6 +200,11 @@ const MonitoringVoyages: React.FC = () => {
     fetchData();
   }, []);
 
+  const handleSuccess = () => {
+    setIsModalOpen(false); // Tutup modal
+    fetchData(); // Ambil ulang data terbaru
+  };
+
   if (loading)
     return (
       <div className="p-6 text-center text-slate-600">Loading Monitoring Voyages…</div>
@@ -186,9 +212,13 @@ const MonitoringVoyages: React.FC = () => {
 
   return (
     <>
-      <div className="overflow-x-auto py-4">
-        <h1 className="text-2xl font-semibold mb-4 text-slate-800">Monitoring Voyages</h1>
+            <div className="overflow-x-auto py-4">
+              <h1 className="text-2xl font-semibold mb-4 text-slate-800">
+                Monitoring Voyages
+              </h1>
+
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          {/* Bagian kiri: filter */}
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-col px-1">
               <label className="text-xs text-slate-600">Date Filter</label>
@@ -205,7 +235,8 @@ const MonitoringVoyages: React.FC = () => {
                 <option value="custom">Custom</option>
               </select>
             </div>
-            {datePreset === 'custom' && (
+
+            {datePreset === "custom" && (
               <>
                 <div className="flex flex-col">
                   <label className="text-xs text-slate-600">Start</label>
@@ -227,15 +258,45 @@ const MonitoringVoyages: React.FC = () => {
                 </div>
               </>
             )}
+
             <button
-              onClick={() => { setDatePreset('all'); setCustomStart(''); setCustomEnd(''); }}
+              onClick={() => {
+                setDatePreset("all");
+                setCustomStart("");
+                setCustomEnd("");
+              }}
               className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm shadow hover:bg-slate-200"
             >
               Reset
             </button>
+
+          
           </div>
-        </div>
+
+           {/* Filter di sini */}
+            <div className="flex justify-start">
+              <Button
+
+                onClick={() => setIsModalOpen(true)}
+                type="button"
+                variant="primary"
+              >
+                Tambah Data
+              </Button>
+            </div>
+
+             {/* Modal Form */}
+            <Modal
+              isOpen={isModalOpen}
+              onClose={() => setIsModalOpen(false)}
+              title="Tambah Voyage Baru"
+            >
+              {/* 3. Gunakan handleSuccess pada prop onSuccess */}
+              <VoyageForm onSuccess={handleSuccess} />
+          </Modal>
+              </div>
       </div>
+
       <div className="overflow-x-auto py-4">
         <table className="min-w-[1200px] w-full text-xs md:text-sm bg-white shadow-lg rounded-xl ring-1 ring-slate-200">
           <thead className="bg-gradient-to-r from-green-700 to-emerald-600">

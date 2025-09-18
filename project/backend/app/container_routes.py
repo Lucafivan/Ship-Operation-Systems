@@ -1,67 +1,71 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
-from .models import db, ContainerMovement
+from .models import db, ContainerMovement, Voyage
 
 cm_bp = Blueprint('container_movements', __name__)
 
 @cm_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_container_movements():
-    container_movements = ContainerMovement.query.all()
-    container_movements_list = []
-    for cm in container_movements:
-        vessel_name = cm.voyage.vessel.name if cm.voyage and cm.voyage.vessel else None
-        voyage_number = cm.voyage.voyage_no if cm.voyage else None
-        voyage_year = cm.voyage.voyage_yr if cm.voyage else None
-        voyage_berth_loc = cm.voyage.berth_loc if cm.voyage else None
-        voyage_date_berth = cm.voyage.date_berth.isoformat() if cm.voyage and cm.voyage.date_berth else None
-        container_movements_list.append({
-            "id": cm.id,
-            "voyage_id": cm.voyage_id,
-            "vessel_name": vessel_name,
-            "voyage_number": voyage_number,
-            "voyage_year": voyage_year,
-            "voyage_berth_loc": voyage_berth_loc,
-            "voyage_date_berth": voyage_date_berth,
-            "bongkaran_empty_20dc": cm.bongkaran_empty_20dc,
-            "bongkaran_empty_40hc": cm.bongkaran_empty_40hc,
-            "bongkaran_full_20dc": cm.bongkaran_full_20dc,
-            "bongkaran_full_40hc": cm.bongkaran_full_40hc,
-            "pengajuan_empty_20dc": cm.pengajuan_empty_20dc,
-            "pengajuan_empty_40hc": cm.pengajuan_empty_40hc,
-            "pengajuan_full_20dc": cm.pengajuan_full_20dc,
-            "pengajuan_full_40hc": cm.pengajuan_full_40hc,
-            "acc_pengajuan_empty_20dc": cm.acc_pengajuan_empty_20dc,
-            "acc_pengajuan_empty_40hc": cm.acc_pengajuan_empty_40hc,
-            "acc_pengajuan_full_20dc": cm.acc_pengajuan_full_20dc,
-            "acc_pengajuan_full_40hc": cm.acc_pengajuan_full_40hc,
-            "total_pengajuan_20dc": cm.total_pengajuan_20dc,
-            "total_pengajuan_40hc": cm.total_pengajuan_40hc,
-            "teus_pengajuan": cm.teus_pengajuan,
-            "realisasi_mxd_20dc": cm.realisasi_mxd_20dc,
-            "realisasi_mxd_40hc": cm.realisasi_mxd_40hc,
-            "realisasi_fxd_20dc": cm.realisasi_fxd_20dc,
-            "realisasi_fxd_40hc": cm.realisasi_fxd_40hc,
-            "shipside_yes_mxd_20dc": cm.shipside_yes_mxd_20dc,
-            "shipside_yes_mxd_40hc": cm.shipside_yes_mxd_40hc,
-            "shipside_yes_fxd_20dc": cm.shipside_yes_fxd_20dc,
-            "shipside_yes_fxd_40hc": cm.shipside_yes_fxd_40hc,
-            "shipside_no_mxd_20dc": cm.shipside_no_mxd_20dc,
-            "shipside_no_mxd_40hc": cm.shipside_no_mxd_40hc,
-            "shipside_no_fxd_20dc": cm.shipside_no_fxd_20dc,
-            "shipside_no_fxd_40hc": cm.shipside_no_fxd_40hc,
-            "total_realisasi_20dc": cm.total_realisasi_20dc,
-            "total_realisasi_40hc": cm.total_realisasi_40hc,
-            "teus_realisasi": cm.teus_realisasi,
-            "turun_cy_20dc": cm.turun_cy_20dc,
-            "turun_cy_40hc": cm.turun_cy_40hc,
-            "teus_turun_cy": cm.teus_turun_cy,
-            "percentage_vessel": cm.percentage_vessel,
-            "obstacles": cm.obstacles,
-            "created_at": cm.created_at.isoformat() if cm.created_at else None,
-            "updated_at": cm.updated_at.isoformat() if cm.updated_at else None
-        })
-    return jsonify(container_movements_list), 200
+
+    results = db.session.query(Voyage, ContainerMovement).outerjoin(
+        ContainerMovement, Voyage.id == ContainerMovement.voyage_id
+    ).all()
+
+    response_data = []
+
+    for voyage, movement in results:
+        
+        item_data = {
+            "id": movement.id if movement else None,
+            "voyage_id": voyage.id,
+            "vessel_name": voyage.vessel.name if voyage.vessel else None,
+            "voyage_number": voyage.voyage_no,
+            "voyage_year": voyage.voyage_yr,
+            "voyage_berth_loc": voyage.berth_loc,
+            "voyage_date_berth": voyage.date_berth.isoformat() if voyage.date_berth else None,
+
+            "bongkaran_empty_20dc": movement.bongkaran_empty_20dc if movement else None,
+            "bongkaran_empty_40hc": movement.bongkaran_empty_40hc if movement else None,
+            "bongkaran_full_20dc": movement.bongkaran_full_20dc if movement else None,
+            "bongkaran_full_40hc": movement.bongkaran_full_40hc if movement else None,
+            "pengajuan_empty_20dc": movement.pengajuan_empty_20dc if movement else None,
+            "pengajuan_empty_40hc": movement.pengajuan_empty_40hc if movement else None,
+            "pengajuan_full_20dc": movement.pengajuan_full_20dc if movement else None,
+            "pengajuan_full_40hc": movement.pengajuan_full_40hc if movement else None,
+            "acc_pengajuan_empty_20dc": movement.acc_pengajuan_empty_20dc if movement else None,
+            "acc_pengajuan_empty_40hc": movement.acc_pengajuan_empty_40hc if movement else None,
+            "acc_pengajuan_full_20dc": movement.acc_pengajuan_full_20dc if movement else None,
+            "acc_pengajuan_full_40hc": movement.acc_pengajuan_full_40hc if movement else None,
+            "total_pengajuan_20dc": movement.total_pengajuan_20dc if movement else None,
+            "total_pengajuan_40hc": movement.total_pengajuan_40hc if movement else None,
+            "teus_pengajuan": movement.teus_pengajuan if movement else None,
+            "realisasi_mxd_20dc": movement.realisasi_mxd_20dc if movement else None,
+            "realisasi_mxd_40hc": movement.realisasi_mxd_40hc if movement else None,
+            "realisasi_fxd_20dc": movement.realisasi_fxd_20dc if movement else None,
+            "realisasi_fxd_40hc": movement.realisasi_fxd_40hc if movement else None,
+            "shipside_yes_mxd_20dc": movement.shipside_yes_mxd_20dc if movement else None,
+            "shipside_yes_mxd_40hc": movement.shipside_yes_mxd_40hc if movement else None,
+            "shipside_yes_fxd_20dc": movement.shipside_yes_fxd_20dc if movement else None,
+            "shipside_yes_fxd_40hc": movement.shipside_yes_fxd_40hc if movement else None,
+            "shipside_no_mxd_20dc": movement.shipside_no_mxd_20dc if movement else None,
+            "shipside_no_mxd_40hc": movement.shipside_no_mxd_40hc if movement else None,
+            "shipside_no_fxd_20dc": movement.shipside_no_fxd_20dc if movement else None,
+            "shipside_no_fxd_40hc": movement.shipside_no_fxd_40hc if movement else None,
+            "total_realisasi_20dc": movement.total_realisasi_20dc if movement else None,
+            "total_realisasi_40hc": movement.total_realisasi_40hc if movement else None,
+            "teus_realisasi": movement.teus_realisasi if movement else None,
+            "turun_cy_20dc": movement.turun_cy_20dc if movement else None,
+            "turun_cy_40hc": movement.turun_cy_40hc if movement else None,
+            "teus_turun_cy": movement.teus_turun_cy if movement else None,
+            "percentage_vessel": movement.percentage_vessel if movement else None,
+            "obstacles": movement.obstacles if movement else "", # Dibiarkan string kosong
+            "created_at": movement.created_at.isoformat() if movement and movement.created_at else None,
+            "updated_at": movement.updated_at.isoformat() if movement and movement.updated_at else None
+        }
+        response_data.append(item_data)
+        
+    return jsonify(response_data), 200
 
 @cm_bp.route('/bongkaran', methods=['POST'])
 @jwt_required()

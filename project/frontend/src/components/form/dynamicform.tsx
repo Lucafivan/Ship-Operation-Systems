@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Button } from "../components/ui/Button";
+// Path ke komponen Button diperbaiki di sini
+import { Button } from "../ui/Button";
 
 interface Field {
   name: string;
@@ -13,6 +14,8 @@ interface DynamicFormProps {
   fields: Field[];
   onSubmit: (data: Record<string, any>) => Promise<void>;
   buttonText?: string;
+  // 1. Tambahkan 'children' ke dalam props agar bisa menerima komponen lain
+  children?: React.ReactNode;
 }
 
 const DynamicForm: React.FC<DynamicFormProps> = ({
@@ -20,6 +23,8 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
   fields,
   onSubmit,
   buttonText = "Next",
+  // Ambil 'children' dari props
+  children,
 }) => {
   const [formData, setFormData] = useState<Record<string, any>>({});
 
@@ -27,7 +32,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
     const { name, value, type } = e.target;
     setFormData({
       ...formData,
-      [name]: type === "number" ? Number(value) : value, // auto convert number
+      [name]: type === "number" ? Number(value) : value,
     });
   };
 
@@ -41,7 +46,6 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
       onSubmit={handleSubmit}
       className="bg-white p-8 rounded-2xl shadow-md w-full max-w-md mx-auto space-y-4"
     >
-      {/* 🔥 tampilkan title jika ada */}
       {title && (
         <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">
           {title}
@@ -57,17 +61,21 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
             type={field.type || "text"}
             name={field.name}
             placeholder={field.placeholder}
-            value={formData[field.name] || ""}   //  controlled input
+            value={formData[field.name] || ""}
             onChange={handleChange}
             className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
           />
         </div>
       ))}
 
-      <div className="pt-4">
+      {/* 2. Modifikasi area tombol agar bisa menampung lebih dari satu */}
+      <div className="pt-4 flex flex-col gap-3">
+        {/* 3. Tampilkan 'children' (tombol secondary kita) di sini */}
+        
         <Button variant="primary" type="submit">
           {buttonText}
         </Button>
+        {children}
       </div>
     </form>
   );
