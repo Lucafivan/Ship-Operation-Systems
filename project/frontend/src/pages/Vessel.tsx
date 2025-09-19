@@ -41,8 +41,6 @@ const VesselPage: React.FC = () => {
       
       const updatedVessels = await apiClient.get<Vessel[]>("/vessels");
       setVessels(updatedVessels.data);
-
-      navigate("/voyage");
     } catch (err: any) {
       console.error("Error submit:", err.response || err);
       toast.error(err.response?.data?.msg || "Gagal membuat vessel");
