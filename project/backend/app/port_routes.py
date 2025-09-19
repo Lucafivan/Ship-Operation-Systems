@@ -4,7 +4,7 @@ from .models import db, Port
 
 port_bp = Blueprint('port_bp', __name__)
 
-@port_bp.route('/', methods=['POST'])
+@port_bp.route('', methods=['POST'])
 @jwt_required()
 def create_port():
     data = request.get_json() or {}
@@ -33,7 +33,7 @@ def create_port():
         }
     }), 201
 
-@port_bp.route('/', methods=['GET'])
+@port_bp.route('', methods=['GET'])
 @jwt_required()
 def get_all_ports():
     ports = Port.query.order_by(Port.name).all()
