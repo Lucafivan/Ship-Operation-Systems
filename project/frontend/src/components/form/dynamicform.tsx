@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 // Path ke komponen Button diperbaiki di sini
 import { Button } from "../ui/Button";
+import { set } from "zod";
 
 interface Field {
   name: string;
@@ -39,6 +40,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await onSubmit(formData);
+    setFormData({});
   };
 
   return (
