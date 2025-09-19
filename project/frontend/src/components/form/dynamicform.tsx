@@ -44,7 +44,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white p-8 rounded-2xl shadow-md w-full max-w-md mx-auto space-y-4"
+      className="bg-white p-8 rounded-2xl shadow-md w-full mx-auto space-y-4"
     >
       {title && (
         <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">

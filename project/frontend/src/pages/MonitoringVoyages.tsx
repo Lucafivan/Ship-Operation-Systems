@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import apiClient from "../api/axios";
-import { Button } from "../components/ui/Button";
 import Modal from "../components/modals";
 import EditContainerMovementModal from "../components/modals/EditContainerMovementModal";
 import VoyageForm from "../components/form/voyagesform";
@@ -212,7 +211,7 @@ const MonitoringVoyages: React.FC = () => {
 
   return (
     <>
-      <div className="overflow-x-auto py-4">
+      <div className="overflow-x-auto">
         <h1 className="text-2xl font-semibold mb-4 text-slate-800">
           Monitoring Voyages
         </h1>
@@ -223,7 +222,7 @@ const MonitoringVoyages: React.FC = () => {
               <select
                 value={datePreset}
                 onChange={(e) => setDatePreset(e.target.value as DatePreset)}
-                className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm shadow-sm focus:outline-none"
               >
                 <option value="all">All</option>
                 <option value="this_week">This Week</option>
@@ -242,7 +241,7 @@ const MonitoringVoyages: React.FC = () => {
                     type="date"
                     value={customStart}
                     onChange={(e) => setCustomStart(e.target.value)}
-                    className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm shadow hover:bg-slate-200"
+                    className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
                 <div className="flex flex-col">
@@ -251,7 +250,7 @@ const MonitoringVoyages: React.FC = () => {
                     type="date"
                     value={customEnd}
                     onChange={(e) => setCustomEnd(e.target.value)}
-                    className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm shadow hover:bg-slate-200"
+                    className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
               </>
@@ -268,14 +267,14 @@ const MonitoringVoyages: React.FC = () => {
               Reset
             </button>
           </div>
-          <div className="flex justify-start">
-            <Button
+          <div className="flex justify-start px-1">
+            <button
               onClick={() => setIsModalOpen(true)}
               type="button"
-              variant="primary"
+              className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm shadow hover:bg-slate-200"
             >
               Tambah Data
-            </Button>
+            </button>
           </div>
           <Modal
             isOpen={isModalOpen}

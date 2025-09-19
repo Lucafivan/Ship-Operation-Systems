@@ -13,6 +13,7 @@ import Vessel from './pages/Vessel';
 import Voyage from './pages/Voyage';
 import Realisasi from './pages/Realisasi';
 import Shipside from './pages/Shipside';
+import Port from './pages/Port';
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
             <Route path="/acc_pengajuan" element={<Acc_Pengajuan/>}/>
             <Route path="/realisasi" element={<Realisasi/>}/>
             <Route path="/shipside" element={<Shipside/>}/>
+            <Route path="/port" element={<Port/>}/>
             <Route path="/monitoring" element={<MonitoringVoyages />} />
           </Route>
         </Route>

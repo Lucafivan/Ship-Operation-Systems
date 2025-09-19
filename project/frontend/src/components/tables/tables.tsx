@@ -17,7 +17,7 @@ const Table: React.FC<TableProps> = ({ headers, data }) => {
 
   return (
     <div className="overflow-x-auto relative">
-      <table className="w-full text-sm text-left text-gray-700">
+      <table className="w-full text-sm text-center text-gray-700">
         <thead className="text-xs text-gray-800 uppercase bg-gray-100">
           <tr>
             {headers.map((header) => (

@@ -69,7 +69,7 @@ const tabs: { key: TabKey; label: string }[] = [
 ];
 
 const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({ isOpen, onClose, row, onUpdated }) => {
-  const [activeTab, setActiveTab] = useState<TabKey>('obstacles');
+  const [activeTab, setActiveTab] = useState<TabKey>('bongkaran');
   const [obstaclesValue, setObstaclesValue] = useState('');
   // Bongkaran
   const [bongkaranEmpty20, setBongkaranEmpty20] = useState<number>(0);
@@ -137,6 +137,12 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
       setNoFxd40(row.shipside_no_fxd_40hc || 0);
     }
   }, [row]);
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      setActiveTab('bongkaran');
+    }
+  }, [isOpen]);
 
   const saveBongkaran = async () => {
     if (!row) return;
