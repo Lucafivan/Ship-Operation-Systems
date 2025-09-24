@@ -14,6 +14,7 @@ import Voyage from './pages/Voyage';
 import Realisasi from './pages/Realisasi';
 import Shipside from './pages/Shipside';
 import Port from './pages/Port';
+import DashboardPage from './pages/Dashboard';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
         {/* Protected route */}
         <Route element={<ProtectedRoute />}>
           <Route element={<MainLayout />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/vessel" element={<Vessel />} />
             <Route path="/voyage" element={<Voyage />} />  
             <Route path="/bongkaran" element={<Bongkaran />} />
