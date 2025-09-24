@@ -1,5 +1,3 @@
-// src/components/form/voyagesform.tsx
-
 import React, { useState, useEffect } from "react";
 import apiClient from "../../api/axios";
 import DynamicForm from "./dynamicform";
@@ -14,36 +12,52 @@ interface Vessel {
   name: string;
 }
 
+interface Port {
+  id: number;
+  name: string;
+  code: string | null;
+}
+
 interface VoyageFormProps {
   onSuccess?: () => void;
 }
 
 const VoyageForm: React.FC<VoyageFormProps> = ({ onSuccess }) => {
   const [vessels, setVessels] = useState<Vessel[]>([]);
-  // 2. Tambahkan state untuk mengontrol modal
+  const [ports, setPorts] = useState<Port[]>([]); // State untuk menyimpan data port
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    const fetchVessels = async () => {
+    const fetchData = async () => {
       try {
-        const response = await apiClient.get<Vessel[]>("/vessels");
-        setVessels(response.data);
+        // Ambil data vessel dan port secara bersamaan
+        const [vesselsRes, portsRes] = await Promise.all([
+          apiClient.get<Vessel[]>("/vessels"),
+          apiClient.get<Port[]>("/ports")
+        ]);
+        setVessels(vesselsRes.data);
+        setPorts(portsRes.data);
       } catch (error) {
-        console.error("Gagal mengambil data vessels:", error);
-        toast.error("Gagal memuat daftar vessel.");
+        console.error("Gagal mengambil data:", error);
+        toast.error("Gagal memuat daftar vessel atau port.");
       }
     };
-    fetchVessels();
+    fetchData();
   }, []);
 
   const fields = [
     { name: "vessel_id", label: "Vessel ID", type: "number", placeholder: "Masukkan ID Vessel (lihat daftar)" },
     { name: "voyage_yr", label: "Tahun Voyage", type: "number", placeholder: "Contoh: 2025" },
-    { name: "berth_loc", label: "Lokasi Sandar", type: "text", placeholder: "Masukkan lokasi sandar" },
+    { name: "berth_loc", label: "Lokasi Sandar", type: "select", placeholder: "Pilih lokasi sandar", options: ports.map(port => ({ value: port.name, label: port.name })) },
     { name: "date_berth", label: "Tanggal Sandar", type: "date" },
   ];
 
   const handleSubmit = async (data: Record<string, any>) => {
+    if (!data.vessel_id || !data.voyage_yr || !data.berth_loc || !data.date_berth) {
+        toast.error("Semua field wajib diisi!");
+        return;
+    }
+    
     try {
       const res = await apiClient.post("/voyages", data);
       toast.success("Voyage berhasil dibuat!");

@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { LayoutDashboard, Table, Target, LogOut } from "lucide-react";
+import { LayoutDashboard, Table, Target, LogOut, BarChart3 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import toast from "react-hot-toast";
 
@@ -38,6 +38,16 @@ function Sidebar() {
       className={`h-screen text-gray-100 transition-all duration-200 ease-out will-change-[width] bg-[#16332f] shadow-xl ring-1 ring-black/20 flex flex-col ${expanded ? "w-60 p-4" : "w-16 p-2"}`}
     >
       <nav className="flex flex-col gap-2 h-full">
+          <Link to="/dashboard" state={{ keepSidebarOpen: true }} className={getLinkClass("/dashboard")}>
+            <BarChart3 size={20} className="shrink-0" />
+            <span
+              className={`whitespace-nowrap overflow-hidden transition-all duration-200
+                ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
+            >
+              Dashboard
+            </span>
+          </Link>
+
           <Link to="/monitoring" state={{ keepSidebarOpen: true }} className={getLinkClass("/monitoring")}>
             <LayoutDashboard size={20} className="shrink-0" />
             <span

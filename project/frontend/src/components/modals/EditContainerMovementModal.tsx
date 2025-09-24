@@ -2,6 +2,22 @@ import React, { useState } from 'react';
 import Modal from '../modals';
 import apiClient from '../../api/axios';
 import toast from 'react-hot-toast';
+import { Lock } from 'lucide-react';
+
+const NumberInput = ({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) => (
+  <div>
+    <label className="block text-sm font-medium text-slate-700">{label}</label>
+    <input
+      type="number"
+      // Jika value adalah 0, tampilkan string kosong. Jika tidak, tampilkan value.
+      value={value === 0 ? '' : value}
+      // Jika pengguna menghapus input, set nilainya kembali ke 0.
+      onChange={(e) => onChange(e.target.value === '' ? 0 : parseInt(e.target.value, 10))}
+      className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+      placeholder="0" // Placeholder akan muncul saat input kosong
+    />
+  </div>
+);
 
 interface ContainerMovement {
   id: number;
@@ -59,15 +75,6 @@ interface EditContainerMovementModalProps {
 
 type TabKey = 'bongkaran' | 'pengajuan' | 'acc_pengajuan' | 'realisasi' | 'shipside' | 'obstacles';
 
-const tabs: { key: TabKey; label: string }[] = [
-  { key: 'bongkaran', label: 'Bongkaran' },
-  { key: 'pengajuan', label: 'Pengajuan' },
-  { key: 'acc_pengajuan', label: 'Acc Pengajuan' },
-  { key: 'realisasi', label: 'Realisasi All Depo' },
-  { key: 'shipside', label: 'Shipside' },
-  { key: 'obstacles', label: 'Obstacles' },
-];
-
 const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({ isOpen, onClose, row, onUpdated }) => {
   const [activeTab, setActiveTab] = useState<TabKey>('bongkaran');
   const [obstaclesValue, setObstaclesValue] = useState('');
@@ -103,6 +110,21 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
 
   const [saving, setSaving] = useState(false);
 
+  const isBongkaranComplete = !!row && (row.bongkaran_empty_20dc > 0 || row.bongkaran_empty_40hc > 0 || row.bongkaran_full_20dc > 0 || row.bongkaran_full_40hc > 0);
+  const isPengajuanComplete = !!row && (row.pengajuan_empty_20dc > 0 || row.pengajuan_empty_40hc > 0 || row.pengajuan_full_20dc > 0 || row.pengajuan_full_40hc > 0);
+  const isAccPengajuanComplete = !!row && row.teus_pengajuan > 0;
+  const isRealisasiComplete = !!row && (row.realisasi_mxd_20dc > 0 || row.realisasi_mxd_40hc > 0 || row.realisasi_fxd_20dc > 0 || row.realisasi_fxd_40hc > 0);
+  const isShipsideComplete = !!row && row.teus_realisasi > 0;
+
+  const tabs: { key: TabKey; label: string; disabled: boolean }[] = [
+    { key: 'bongkaran', label: 'Bongkaran', disabled: false },
+    { key: 'pengajuan', label: 'Pengajuan', disabled: !isBongkaranComplete },
+    { key: 'acc_pengajuan', label: 'Acc Pengajuan', disabled: !isPengajuanComplete },
+    { key: 'realisasi', label: 'Realisasi All Depo', disabled: !isAccPengajuanComplete },
+    { key: 'shipside', label: 'Shipside', disabled: !isRealisasiComplete },
+    { key: 'obstacles', label: 'Obstacles', disabled: !isShipsideComplete },
+  ];
+
   React.useEffect(() => {
     if (row) {
       setObstaclesValue(row.obstacles || '');
@@ -135,14 +157,15 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
       setNoMxd40(row.shipside_no_mxd_40hc || 0);
       setNoFxd20(row.shipside_no_fxd_20dc || 0);
       setNoFxd40(row.shipside_no_fxd_40hc || 0);
-    }
-  }, [row]);
 
-  React.useEffect(() => {
-    if (!isOpen) {
-      setActiveTab('bongkaran');
+      if (!isBongkaranComplete) setActiveTab('bongkaran');
+      else if (!isPengajuanComplete) setActiveTab('pengajuan');
+      else if (!isAccPengajuanComplete) setActiveTab('acc_pengajuan');
+      else if (!isRealisasiComplete) setActiveTab('realisasi');
+      else if (!isShipsideComplete) setActiveTab('shipside');
+      else setActiveTab('obstacles');
     }
-  }, [isOpen]);
+  }, [row, isOpen]);  
 
   const saveBongkaran = async () => {
     if (!row) return;
@@ -280,18 +303,6 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
       setSaving(false);
     }
   };
-
-  const NumberInput = ({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) => (
-    <div>
-      <label className="block text-sm font-medium text-slate-700">{label}</label>
-      <input
-        type="number"
-        value={Number.isNaN(value) ? 0 : value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-      />
-    </div>
-  );
 
   const renderTabContent = () => {
     if (!row) return <p className="text-sm text-slate-500">Data tidak tersedia.</p>;
@@ -447,13 +458,19 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
               {tabs.map((tab) => (
                 <button
                   key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                  onClick={() => !tab.disabled && setActiveTab(tab.key)}
+                  disabled={tab.disabled}
+                  className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 ${
                     activeTab === tab.key
                       ? 'bg-emerald-600 text-white shadow'
-                      : 'bg-white border border-slate-300 text-slate-600 hover:bg-slate-100'
+                      : 'bg-white border border-slate-300 text-slate-600'
+                  } ${
+                    tab.disabled
+                      ? 'opacity-60 cursor-not-allowed bg-slate-100 text-slate-400'
+                      : 'hover:bg-slate-50'
                   }`}
                 >
+                  {tab.disabled && <Lock size={12} />}
                   {tab.label}
                 </button>
               ))}

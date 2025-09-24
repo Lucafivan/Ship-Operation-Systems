@@ -1,13 +1,12 @@
 import React, { useState } from "react";
-// Path ke komponen Button diperbaiki di sini
 import { Button } from "../ui/Button";
-import { set } from "zod";
 
 interface Field {
   name: string;
   label: string;
   placeholder?: string;
   type?: string;
+  options?: { value: string; label: string }[]; 
 }
 
 interface DynamicFormProps {
@@ -40,7 +39,6 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await onSubmit(formData);
-    setFormData({});
   };
 
   return (
@@ -59,14 +57,32 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
           <label className="mb-1 text-sm font-medium text-gray-700">
             {field.label}
           </label>
-          <input
-            type={field.type || "text"}
-            name={field.name}
-            placeholder={field.placeholder}
-            value={formData[field.name] || ""}
-            onChange={handleChange}
-            className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
+          {field.type === 'select' ? (
+            <select
+              name={field.name}
+              value={formData[field.name] || ""}
+              onChange={handleChange}
+              className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+            >
+              <option value="" disabled>
+                {field.placeholder || 'Pilih salah satu...'}
+              </option>
+              {field.options?.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type={field.type || "text"}
+              name={field.name}
+              placeholder={field.placeholder}
+              value={formData[field.name] || ""}
+              onChange={handleChange}
+              className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+          )}
         </div>
       ))}
 

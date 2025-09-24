@@ -75,9 +75,6 @@ const LoginPage: React.FC = () => {
             <label className="block mt-4 text-xs text-gray-600 text-left">password</label>
             <Input type="password" placeholder="" hasError={!!errors.password} {...register("password")} />
             {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
-            <div className="mt-2 text-right">
-              <a href="#" className="text-[11px] text-blue-600 hover:underline italic">Forgot Password?</a>
-            </div>
             {/* Actions */}
             <div className="mt-6 flex items-center gap-4">
               <Button type="button" variant="secondary" disabled={isSubmitting} onClick={() => navigate("/register")}>Sign up</Button>
