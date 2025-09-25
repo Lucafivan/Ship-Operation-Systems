@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { LayoutDashboard, Table, Target, LogOut, BarChart3 } from "lucide-react";
+import { BarChart3, ClipboardList, Ship, Anchor, LogOut } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import toast from "react-hot-toast";
 
@@ -35,7 +35,7 @@ function Sidebar() {
     <aside
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
-      className={`h-screen text-gray-100 transition-all duration-200 ease-out will-change-[width] bg-[#16332f] shadow-xl ring-1 ring-black/20 flex flex-col ${expanded ? "w-60 p-4" : "w-16 p-2"}`}
+      className={`h-screen text-gray-100 transition-all duration-300 ease-in-out will-change-[width] bg-[#16332f] shadow-xl ring-1 ring-black/20 flex flex-col rounded-tr-2xl rounded-br-2xl ${expanded ? "w-60 p-4" : "w-16 p-2"}`}
     >
       <nav className="flex flex-col gap-2 h-full">
           <Link to="/dashboard" state={{ keepSidebarOpen: true }} className={getLinkClass("/dashboard")}>
@@ -49,30 +49,27 @@ function Sidebar() {
           </Link>
 
           <Link to="/monitoring" state={{ keepSidebarOpen: true }} className={getLinkClass("/monitoring")}>
-            <LayoutDashboard size={20} className="shrink-0" />
+            <ClipboardList size={20} className="shrink-0" />
             <span
-              className={`whitespace-nowrap overflow-hidden transition-all duration-200
-                ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
+              className={`whitespace-nowrap overflow-hidden transition-all duration-200 ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
             >
               Monitoring Voyages
             </span>
           </Link>
 
           <Link to="/vessel" state={{ keepSidebarOpen: true }} className={getLinkClass("/vessel")}>
-            <LayoutDashboard size={20} className="shrink-0" />
+            <Ship size={20} className="shrink-0" />
             <span
-              className={`whitespace-nowrap overflow-hidden transition-all duration-200
-                ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
+              className={`whitespace-nowrap overflow-hidden transition-all duration-200 ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
             >
               Vessel
             </span>
           </Link>
 
           <Link to="/port" state={{ keepSidebarOpen: true }} className={getLinkClass("/port")}>
-            <LayoutDashboard size={20} className="shrink-0" />
+            <Anchor size={20} className="shrink-0" />
             <span
-              className={`whitespace-nowrap overflow-hidden transition-all duration-200
-                ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
+              className={`whitespace-nowrap overflow-hidden transition-all duration-200 ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
             >
               Port
             </span>
