@@ -10,7 +10,7 @@ interface PortSummary {
   total_realisasi: number;
 }
 
-const CHART_COLORS = ['#3a9542', '#82ca9d', '#ffc658'];
+const CHART_COLORS = ['#03c0ff', '#ffc658'];
 
 const DashboardPage: React.FC = () => {
   const [summaryData, setSummaryData] = useState<PortSummary[]>([]);
@@ -40,7 +40,6 @@ const DashboardPage: React.FC = () => {
     if (!portData) return [];
     return [
       { name: 'Total Pengajuan', value: portData.total_pengajuan },
-      { name: 'ACC Pengajuan', value: portData.acc_pengajuan },
       { name: 'Total Realisasi', value: portData.total_realisasi },
     ];
   };
