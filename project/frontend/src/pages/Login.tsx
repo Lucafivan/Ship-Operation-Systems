@@ -45,7 +45,7 @@ const LoginPage: React.FC = () => {
       localStorage.setItem('access_token', response.data.access_token);
       
       login(response.data.access_token, response.data.refresh_token);
-      navigate('/monitoring');
+      navigate('/dashboard');
 
     } catch (error) {
       toast.dismiss();
