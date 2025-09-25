@@ -72,10 +72,13 @@ def get_container_movements():
 def create_bongkaran():
     data = request.get_json()
     voyage_id = data.get('voyage_id')
-    bongkaran_empty_20dc = data.get('bongkaran_empty_20dc', 0)
-    bongkaran_empty_40hc = data.get('bongkaran_empty_40hc', 0)
-    bongkaran_full_20dc = data.get('bongkaran_full_20dc', 0)
-    bongkaran_full_40hc = data.get('bongkaran_full_40hc', 0)
+    try:
+        bongkaran_empty_20dc = max(int(data.get('bongkaran_empty_20dc', 0)), 0)
+        bongkaran_empty_40hc = max(int(data.get('bongkaran_empty_40hc', 0)), 0)
+        bongkaran_full_20dc = max(int(data.get('bongkaran_full_20dc', 0)), 0)
+        bongkaran_full_40hc = max(int(data.get('bongkaran_full_40hc', 0)), 0)
+    except (ValueError, TypeError):
+        return jsonify({"msg": "Format input bongkaran tidak valid"}), 400
 
     if not voyage_id:
         return jsonify({"msg": "voyage_id diperlukan"}), 400
@@ -112,10 +115,13 @@ def create_pengajuan():
     if not cm_id:
         return jsonify({"msg": "id diperlukan"}), 400
     
-    pengajuan_empty_20dc = data.get('pengajuan_empty_20dc', 0)
-    pengajuan_empty_40hc = data.get('pengajuan_empty_40hc', 0)
-    pengajuan_full_20dc = data.get('pengajuan_full_20dc', 0)
-    pengajuan_full_40hc = data.get('pengajuan_full_40hc', 0)
+    try:
+        pengajuan_empty_20dc = max(int(data.get('pengajuan_empty_20dc', 0)), 0)
+        pengajuan_empty_40hc = max(int(data.get('pengajuan_empty_40hc', 0)), 0)
+        pengajuan_full_20dc = max(int(data.get('pengajuan_full_20dc', 0)), 0)
+        pengajuan_full_40hc = max(int(data.get('pengajuan_full_40hc', 0)), 0)
+    except (ValueError, TypeError):
+        return jsonify({"msg": "Format input pengajuan tidak valid"}), 400
 
     cm = ContainerMovement.query.filter_by(id=cm_id).first()
     if not cm:
@@ -146,10 +152,13 @@ def create_acc_pengajuan():
     if not cm_id:
         return jsonify({"msg": "id diperlukan"}), 400
     
-    acc_pengajuan_empty_20dc = data.get('acc_pengajuan_empty_20dc', 0)
-    acc_pengajuan_empty_40hc = data.get('acc_pengajuan_empty_40hc', 0)
-    acc_pengajuan_full_20dc = data.get('acc_pengajuan_full_20dc', 0)
-    acc_pengajuan_full_40hc = data.get('acc_pengajuan_full_40hc', 0)
+    try:
+        acc_pengajuan_empty_20dc = max(int(data.get('acc_pengajuan_empty_20dc', 0)), 0)
+        acc_pengajuan_empty_40hc = max(int(data.get('acc_pengajuan_empty_40hc', 0)), 0)
+        acc_pengajuan_full_20dc = max(int(data.get('acc_pengajuan_full_20dc', 0)), 0)
+        acc_pengajuan_full_40hc = max(int(data.get('acc_pengajuan_full_40hc', 0)), 0)
+    except (ValueError, TypeError):
+        return jsonify({"msg": "Format input ACC Pengajuan tidak valid"}), 400
     total_pengajuan_20dc = acc_pengajuan_empty_20dc + acc_pengajuan_full_20dc
     total_pengajuan_40hc = acc_pengajuan_empty_40hc + acc_pengajuan_full_40hc
     teus_pengajuan = (total_pengajuan_20dc) + (total_pengajuan_40hc * 2)
@@ -157,6 +166,29 @@ def create_acc_pengajuan():
     cm = ContainerMovement.query.filter_by(id=cm_id).first()
     if not cm:
         return jsonify({"msg": "ContainerMovement tidak ditemukan"}), 404
+
+    if any(v is None for v in [
+        cm.pengajuan_empty_20dc, cm.pengajuan_empty_40hc,
+        cm.pengajuan_full_20dc, cm.pengajuan_full_40hc
+    ]):
+        return jsonify({"msg": "Data pengajuan belum tersedia untuk ContainerMovement ini"}), 400
+
+    violations = []
+    if acc_pengajuan_empty_20dc > (cm.pengajuan_empty_20dc or 0):
+        violations.append({"field": "acc_pengajuan_empty_20dc", "value": acc_pengajuan_empty_20dc, "max": cm.pengajuan_empty_20dc or 0,
+                           "msg": f"ACC Pengajuan Empty 20DC ({acc_pengajuan_empty_20dc}) melebihi Pengajuan ({cm.pengajuan_empty_20dc or 0})."})
+    if acc_pengajuan_empty_40hc > (cm.pengajuan_empty_40hc or 0):
+        violations.append({"field": "acc_pengajuan_empty_40hc", "value": acc_pengajuan_empty_40hc, "max": cm.pengajuan_empty_40hc or 0,
+                           "msg": f"ACC Pengajuan Empty 40HC ({acc_pengajuan_empty_40hc}) melebihi Pengajuan ({cm.pengajuan_empty_40hc or 0})."})
+    if acc_pengajuan_full_20dc > (cm.pengajuan_full_20dc or 0):
+        violations.append({"field": "acc_pengajuan_full_20dc", "value": acc_pengajuan_full_20dc, "max": cm.pengajuan_full_20dc or 0,
+                           "msg": f"ACC Pengajuan Full 20DC ({acc_pengajuan_full_20dc}) melebihi Pengajuan ({cm.pengajuan_full_20dc or 0})."})
+    if acc_pengajuan_full_40hc > (cm.pengajuan_full_40hc or 0):
+        violations.append({"field": "acc_pengajuan_full_40hc", "value": acc_pengajuan_full_40hc, "max": cm.pengajuan_full_40hc or 0,
+                           "msg": f"ACC Pengajuan Full 40HC ({acc_pengajuan_full_40hc}) melebihi Pengajuan ({cm.pengajuan_full_40hc or 0})."})
+
+    if violations:
+        return jsonify({"msg": "ACC Pengajuan melebihi nilai Pengajuan", "violations": violations}), 400
 
     cm.acc_pengajuan_empty_20dc = acc_pengajuan_empty_20dc
     cm.acc_pengajuan_empty_40hc = acc_pengajuan_empty_40hc
@@ -181,75 +213,65 @@ def create_acc_pengajuan():
         "updated_at": cm.updated_at.isoformat() if cm.updated_at else None
     }}), 200
 
-@cm_bp.route('/realisasi', methods=['POST'])
+@cm_bp.route('/realisasi_shipside', methods=['POST'])
 @jwt_required()
-def create_realisasi():
+def create_realisasi_shipside():
     data = request.get_json()
     cm_id = data.get('id')
     if not cm_id:
         return jsonify({"msg": "id diperlukan"}), 400
-    
-    realisasi_mxd_20dc = data.get('realisasi_mxd_20dc', 0)
-    realisasi_mxd_40hc = data.get('realisasi_mxd_40hc', 0)
-    realisasi_fxd_20dc = data.get('realisasi_fxd_20dc', 0)
-    realisasi_fxd_40hc = data.get('realisasi_fxd_40hc', 0)
+
+    try:
+        realisasi_mxd_20dc = max(int(data.get('realisasi_mxd_20dc', 0)), 0)
+        realisasi_mxd_40hc = max(int(data.get('realisasi_mxd_40hc', 0)), 0)
+        realisasi_fxd_20dc = max(int(data.get('realisasi_fxd_20dc', 0)), 0)
+        realisasi_fxd_40hc = max(int(data.get('realisasi_fxd_40hc', 0)), 0)
+        shipside_yes_mxd_20dc = max(int(data.get('shipside_yes_mxd_20dc', 0)), 0)
+        shipside_yes_mxd_40hc = max(int(data.get('shipside_yes_mxd_40hc', 0)), 0)
+        shipside_yes_fxd_20dc = max(int(data.get('shipside_yes_fxd_20dc', 0)), 0)
+        shipside_yes_fxd_40hc = max(int(data.get('shipside_yes_fxd_40hc', 0)), 0)
+        shipside_no_mxd_20dc = max(int(data.get('shipside_no_mxd_20dc', 0)), 0)
+        shipside_no_mxd_40hc = max(int(data.get('shipside_no_mxd_40hc', 0)), 0)
+        shipside_no_fxd_20dc = max(int(data.get('shipside_no_fxd_20dc', 0)), 0)
+        shipside_no_fxd_40hc = max(int(data.get('shipside_no_fxd_40hc', 0)), 0)
+    except (ValueError, TypeError):
+        return jsonify({"msg": "Format input realisasi/shipside tidak valid"}), 400
 
     cm = ContainerMovement.query.filter_by(id=cm_id).first()
     if not cm:
         return jsonify({"msg": "ContainerMovement tidak ditemukan"}), 404
-    
+    if any(v is None for v in [cm.acc_pengajuan_empty_20dc, cm.acc_pengajuan_empty_40hc, cm.acc_pengajuan_full_20dc, cm.acc_pengajuan_full_40hc]):
+        return jsonify({"msg": "Data ACC Pengajuan belum tersedia untuk ContainerMovement ini"}), 400
+
+    total_realisasi_empty_20dc = realisasi_mxd_20dc + shipside_yes_mxd_20dc + shipside_no_mxd_20dc
+    total_realisasi_empty_40hc = realisasi_mxd_40hc + shipside_yes_mxd_40hc + shipside_no_mxd_40hc
+    total_realisasi_full_20dc = realisasi_fxd_20dc + shipside_yes_fxd_20dc + shipside_no_fxd_20dc
+    total_realisasi_full_40hc = realisasi_fxd_40hc + shipside_yes_fxd_40hc + shipside_no_fxd_40hc
+
+    total_realisasi_20dc = total_realisasi_empty_20dc + total_realisasi_full_20dc
+    total_realisasi_40hc = total_realisasi_empty_40hc + total_realisasi_full_40hc
+
+    violations = []
+    if total_realisasi_empty_20dc > (cm.acc_pengajuan_empty_20dc or 0):
+        violations.append({"field": "realisasi/shipside_empty_20dc", "value": total_realisasi_empty_20dc, "max": cm.acc_pengajuan_empty_20dc or 0,
+                           "msg": f"Total Realisasi/Shipside Empty 20DC ({total_realisasi_empty_20dc}) melebihi ACC Pengajuan ({cm.acc_pengajuan_empty_20dc or 0})."})
+    if total_realisasi_empty_40hc > (cm.acc_pengajuan_empty_40hc or 0):
+        violations.append({"field": "realisasi/shipside_empty_40hc", "value": total_realisasi_empty_40hc, "max": cm.acc_pengajuan_empty_40hc or 0,
+                           "msg": f"Total Realisasi/Shipside Empty 40HC ({total_realisasi_empty_40hc}) melebihi ACC Pengajuan ({cm.acc_pengajuan_empty_40hc or 0})."})
+    if total_realisasi_full_20dc > (cm.acc_pengajuan_full_20dc or 0):
+        violations.append({"field": "realisasi/shipside_full_20dc", "value": total_realisasi_full_20dc, "max": cm.acc_pengajuan_full_20dc or 0,
+                           "msg": f"Total Realisasi/Shipside Full 20DC ({total_realisasi_full_20dc}) melebihi ACC Pengajuan ({cm.acc_pengajuan_full_20dc or 0})."})
+    if total_realisasi_full_40hc > (cm.acc_pengajuan_full_40hc or 0):
+        violations.append({"field": "realisasi/shipside_full_40hc", "value": total_realisasi_full_40hc, "max": cm.acc_pengajuan_full_40hc or 0,
+                           "msg": f"Total Realisasi/Shipside Full 40HC ({total_realisasi_full_40hc}) melebihi ACC Pengajuan ({cm.acc_pengajuan_full_40hc or 0})."})
+
+    if violations:
+        return jsonify({"msg": "Realisasi/Shipside melebihi batas ACC Pengajuan", "violations": violations}), 400
+
     cm.realisasi_mxd_20dc = realisasi_mxd_20dc
     cm.realisasi_mxd_40hc = realisasi_mxd_40hc
     cm.realisasi_fxd_20dc = realisasi_fxd_20dc
     cm.realisasi_fxd_40hc = realisasi_fxd_40hc
-
-    db.session.commit()
-
-    return jsonify({"msg": "Realisasi berhasil diperbarui", "container_movement": {
-        "id": cm.id,
-        "voyage_id": cm.voyage_id,
-        "realisasi_mxd_20dc": cm.realisasi_mxd_20dc,
-        "realisasi_mxd_40hc": cm.realisasi_mxd_40hc,
-        "realisasi_fxd_20dc": cm.realisasi_fxd_20dc,
-        "realisasi_fxd_40hc": cm.realisasi_fxd_40hc,
-        "updated_at": cm.updated_at.isoformat() if cm.updated_at else None
-    }}), 200
-
-@cm_bp.route('/shipside', methods=['POST'])
-@jwt_required()
-def create_shipside():
-    data = request.get_json()
-    cm_id = data.get('id')
-    if not cm_id:
-        return jsonify({"msg": "id diperlukan"}), 400
-    
-    shipside_yes_mxd_20dc = data.get('shipside_yes_mxd_20dc', 0)
-    shipside_yes_mxd_40hc = data.get('shipside_yes_mxd_40hc', 0)
-    shipside_yes_fxd_20dc = data.get('shipside_yes_fxd_20dc', 0)
-    shipside_yes_fxd_40hc = data.get('shipside_yes_fxd_40hc', 0)
-    shipside_no_mxd_20dc = data.get('shipside_no_mxd_20dc', 0)
-    shipside_no_mxd_40hc = data.get('shipside_no_mxd_40hc', 0)
-    shipside_no_fxd_20dc = data.get('shipside_no_fxd_20dc', 0)
-    shipside_no_fxd_40hc = data.get('shipside_no_fxd_40hc', 0)
-    obstacle = data.get('obstacles', '')
-
-    cm = ContainerMovement.query.filter_by(id=cm_id).first()
-    if not cm:
-        return jsonify({"msg": "ContainerMovement tidak ditemukan"}), 404
-
-    total_realisasi_20dc = (cm.realisasi_mxd_20dc + shipside_yes_mxd_20dc + 
-                            shipside_no_mxd_20dc + cm.realisasi_fxd_20dc +
-                            shipside_yes_fxd_20dc + shipside_no_fxd_20dc)
-    total_realisasi_40hc = (cm.realisasi_mxd_40hc + shipside_yes_mxd_40hc + 
-                            shipside_no_mxd_40hc + cm.realisasi_fxd_40hc +
-                            shipside_yes_fxd_40hc + shipside_no_fxd_40hc)
-    teus_realisasi = (total_realisasi_20dc) + (total_realisasi_40hc * 2)
-
-    turun_cy_20dc = (cm.total_pengajuan_20dc - total_realisasi_20dc)
-    turun_cy_40hc = (cm.total_pengajuan_40hc - total_realisasi_40hc)
-    teus_turun_cy = (turun_cy_20dc) + (turun_cy_40hc * 2)
-
-    percentage_vessel = teus_realisasi / cm.teus_pengajuan if cm.teus_pengajuan > 0 else 0
 
     cm.shipside_yes_mxd_20dc = shipside_yes_mxd_20dc
     cm.shipside_yes_mxd_40hc = shipside_yes_mxd_40hc
@@ -259,6 +281,13 @@ def create_shipside():
     cm.shipside_no_mxd_40hc = shipside_no_mxd_40hc
     cm.shipside_no_fxd_20dc = shipside_no_fxd_20dc
     cm.shipside_no_fxd_40hc = shipside_no_fxd_40hc
+
+    teus_realisasi = (total_realisasi_20dc) + (total_realisasi_40hc * 2)
+    turun_cy_20dc = (cm.total_pengajuan_20dc - total_realisasi_20dc)
+    turun_cy_40hc = (cm.total_pengajuan_40hc - total_realisasi_40hc)
+    teus_turun_cy = (turun_cy_20dc) + (turun_cy_40hc * 2)
+    percentage_vessel = teus_realisasi / cm.teus_pengajuan if (cm.teus_pengajuan or 0) > 0 else 0
+
     cm.total_realisasi_20dc = total_realisasi_20dc
     cm.total_realisasi_40hc = total_realisasi_40hc
     cm.teus_realisasi = teus_realisasi
@@ -266,28 +295,57 @@ def create_shipside():
     cm.turun_cy_40hc = turun_cy_40hc
     cm.teus_turun_cy = teus_turun_cy
     cm.percentage_vessel = percentage_vessel
-    cm.obstacles = obstacle
 
     db.session.commit()
 
-    return jsonify({"msg": "Shipside dan perhitungan terkait berhasil diperbarui", "container_movement": {
+    return jsonify({
+        "msg": "Realisasi dan Shipside berhasil diperbarui",
+        "container_movement": {
+            "id": cm.id,
+            "voyage_id": cm.voyage_id,
+            "realisasi_mxd_20dc": cm.realisasi_mxd_20dc,
+            "realisasi_mxd_40hc": cm.realisasi_mxd_40hc,
+            "realisasi_fxd_20dc": cm.realisasi_fxd_20dc,
+            "realisasi_fxd_40hc": cm.realisasi_fxd_40hc,
+            "shipside_yes_mxd_20dc": cm.shipside_yes_mxd_20dc,
+            "shipside_yes_mxd_40hc": cm.shipside_yes_mxd_40hc,
+            "shipside_yes_fxd_20dc": cm.shipside_yes_fxd_20dc,
+            "shipside_yes_fxd_40hc": cm.shipside_yes_fxd_40hc,
+            "shipside_no_mxd_20dc": cm.shipside_no_mxd_20dc,
+            "shipside_no_mxd_40hc": cm.shipside_no_mxd_40hc,
+            "shipside_no_fxd_20dc": cm.shipside_no_fxd_20dc,
+            "shipside_no_fxd_40hc": cm.shipside_no_fxd_40hc,
+            "total_realisasi_20dc": cm.total_realisasi_20dc,
+            "total_realisasi_40hc": cm.total_realisasi_40hc,
+            "teus_realisasi": cm.teus_realisasi,
+            "turun_cy_20dc": cm.turun_cy_20dc,
+            "turun_cy_40hc": cm.turun_cy_40hc,
+            "teus_turun_cy": cm.teus_turun_cy,
+            "percentage_vessel": cm.percentage_vessel,
+            "updated_at": cm.updated_at.isoformat() if cm.updated_at else None
+        }
+    }), 200
+
+@cm_bp.route('/obstacles', methods=['POST'])
+@jwt_required()
+def add_obstacles():
+    data = request.get_json()
+    cm_id = data.get('id')
+    obstacles = data.get('obstacles', '')
+
+    if not cm_id:
+        return jsonify({"msg": "id diperlukan"}), 400
+
+    cm = ContainerMovement.query.filter_by(id=cm_id).first()
+    if not cm:
+        return jsonify({"msg": "ContainerMovement tidak ditemukan"}), 404
+
+    cm.obstacles = obstacles
+    db.session.commit()
+
+    return jsonify({"msg": "Obstacles berhasil diperbarui", "container_movement": {
         "id": cm.id,
         "voyage_id": cm.voyage_id,
-        "shipside_yes_mxd_20dc": cm.shipside_yes_mxd_20dc,
-        "shipside_yes_mxd_40hc": cm.shipside_yes_mxd_40hc,
-        "shipside_yes_fxd_20dc": cm.shipside_yes_fxd_20dc,
-        "shipside_yes_fxd_40hc": cm.shipside_yes_fxd_40hc,
-        "shipside_no_mxd_20dc": cm.shipside_no_mxd_20dc,
-        "shipside_no_mxd_40hc": cm.shipside_no_mxd_40hc,
-        "shipside_no_fxd_20dc": cm.shipside_no_fxd_20dc,
-        "shipside_no_fxd_40hc": cm.shipside_no_fxd_40hc,
-        "total_realisasi_20dc": cm.total_realisasi_20dc,
-        "total_realisasi_40hc": cm.total_realisasi_40hc,
-        "teus_realisasi": cm.teus_realisasi,
-        "turun_cy_20dc": cm.turun_cy_20dc,
-        "turun_cy_40hc": cm.turun_cy_40hc,
-        "teus_turun_cy": cm.teus_turun_cy,
-        "percentage_vessel": cm.percentage_vessel,
         "obstacles": cm.obstacles,
         "updated_at": cm.updated_at.isoformat() if cm.updated_at else None
     }}), 200
