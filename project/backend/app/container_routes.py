@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from .models import db, ContainerMovement, Voyage
+from sqlalchemy.sql import func
 
 cm_bp = Blueprint('container_movements', __name__)
 
@@ -291,3 +292,32 @@ def create_shipside():
         "obstacles": cm.obstacles,
         "updated_at": cm.updated_at.isoformat() if cm.updated_at else None
     }}), 200
+
+@cm_bp.route('/summary-by-port', methods=['GET'])
+@jwt_required()
+def get_summary_by_port():
+    """
+    Endpoint untuk mendapatkan rekap total pengajuan, acc pengajuan,
+    dan realisasi per lokasi sandar (port).
+    """
+    summary_data = db.session.query(
+        Voyage.berth_loc,
+        func.sum(ContainerMovement.teus_pengajuan).label('total_pengajuan'),
+        # Di sini kita asumsikan acc_pengajuan sama dengan total_pengajuan untuk chart
+        func.sum(ContainerMovement.teus_pengajuan).label('acc_pengajuan'),
+        func.sum(ContainerMovement.teus_realisasi).label('total_realisasi')
+    ).join(ContainerMovement, Voyage.id == ContainerMovement.voyage_id)\
+     .group_by(Voyage.berth_loc)\
+     .all()
+
+    result = [
+        {
+            "port": data.berth_loc,
+            "total_pengajuan": float(data.total_pengajuan or 0),
+            "acc_pengajuan": float(data.acc_pengajuan or 0),
+            "total_realisasi": float(data.total_realisasi or 0),
+        }
+        for data in summary_data if data.berth_loc
+    ]
+    
+    return jsonify(result), 200
