@@ -28,17 +28,29 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
 }) => {
   const [formData, setFormData] = useState<Record<string, any>>({});
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [name]: type === "number" ? Number(value) : value,
-    });
+    }));
+  };
+
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSubmit(formData);
+    try {
+      await onSubmit(formData);
+      setFormData({});
+    } catch (err) {
+    }
   };
 
   return (
@@ -61,7 +73,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
             <select
               name={field.name}
               value={formData[field.name] || ""}
-              onChange={handleChange}
+              onChange={handleSelectChange}
               className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
             >
               <option value="" disabled>
@@ -79,7 +91,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
               name={field.name}
               placeholder={field.placeholder}
               value={formData[field.name] || ""}
-              onChange={handleChange}
+              onChange={handleInputChange}
               className="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           )}
