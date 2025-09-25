@@ -9,6 +9,7 @@ const NumberInput = ({ label, value, onChange }: { label: string; value: number;
     <label className="block text-sm font-medium text-slate-700">{label}</label>
     <input
       type="number"
+      min={0}
       // Jika value adalah 0, tampilkan string kosong. Jika tidak, tampilkan value.
       value={value === 0 ? '' : value}
       // Jika pengguna menghapus input, set nilainya kembali ke 0.
@@ -73,7 +74,7 @@ interface EditContainerMovementModalProps {
   onUpdated: () => Promise<void> | void;
 }
 
-type TabKey = 'bongkaran' | 'pengajuan' | 'acc_pengajuan' | 'realisasi' | 'shipside' | 'obstacles';
+type TabKey = 'bongkaran' | 'pengajuan' | 'acc_pengajuan' | 'realisasi' | 'obstacles';
 
 const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({ isOpen, onClose, row, onUpdated }) => {
   const [activeTab, setActiveTab] = useState<TabKey>('bongkaran');
@@ -120,8 +121,7 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
     { key: 'bongkaran', label: 'Bongkaran', disabled: false },
     { key: 'pengajuan', label: 'Pengajuan', disabled: !isBongkaranComplete },
     { key: 'acc_pengajuan', label: 'Acc Pengajuan', disabled: !isPengajuanComplete },
-    { key: 'realisasi', label: 'Realisasi All Depo', disabled: !isAccPengajuanComplete },
-    { key: 'shipside', label: 'Shipside', disabled: !isRealisasiComplete },
+    { key: 'realisasi', label: 'Realisasi All Depo dan Shipside', disabled: !isAccPengajuanComplete },
     { key: 'obstacles', label: 'Obstacles', disabled: !isShipsideComplete },
   ];
 
@@ -162,10 +162,9 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
       else if (!isPengajuanComplete) setActiveTab('pengajuan');
       else if (!isAccPengajuanComplete) setActiveTab('acc_pengajuan');
       else if (!isRealisasiComplete) setActiveTab('realisasi');
-      else if (!isShipsideComplete) setActiveTab('shipside');
       else setActiveTab('obstacles');
     }
-  }, [row, isOpen]);  
+  }, [row, isOpen]);
 
   const saveBongkaran = async () => {
     if (!row) return;
@@ -179,7 +178,7 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
         bongkaran_full_20dc: Number(bongkaranFull20 || 0),
         bongkaran_full_40hc: Number(bongkaranFull40 || 0),
       });
-      toast.success('Berhasil memperbarui bongkaran');
+      toast.success('Berhasil memperbarui Bongkaran');
       await onUpdated();
       onClose();
     } catch (e: any) {
@@ -200,11 +199,12 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
         pengajuan_full_20dc: Number(pengajuanFull20 || 0),
         pengajuan_full_40hc: Number(pengajuanFull40 || 0),
       });
-      toast.success('Berhasil memperbarui pengajuan');
+      toast.success('Berhasil memperbarui Pengajuan');
       await onUpdated();
       onClose();
     } catch (e: any) {
-      toast.error(e?.response?.data?.msg || 'Gagal memperbarui pengajuan');
+      const data = e?.response?.data;
+      toast.error(data?.msg || 'Gagal memperbarui pengajuan');
     } finally {
       setSaving(false);
     }
@@ -225,39 +225,27 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
       await onUpdated();
       onClose();
     } catch (e: any) {
-      toast.error(e?.response?.data?.msg || 'Gagal memperbarui ACC Pengajuan');
+      const data = e?.response?.data;
+      if (data?.violations && Array.isArray(data.violations) && data.violations.length > 0) {
+        data.violations.forEach((v: any) => toast.error(v?.msg || data?.msg || 'ACC melebihi Pengajuan'));
+      } else {
+        toast.error(data?.msg || 'Gagal memperbarui ACC Pengajuan');
+      }
     } finally {
       setSaving(false);
     }
   };
 
-  const saveRealisasi = async () => {
+  const saveRealisasiAndShipside = async () => {
     if (!row) return;
     setSaving(true);
     try {
-      await apiClient.post('/container_movements/realisasi', {
+      await apiClient.post('/container_movements/realisasi_shipside', {
         id: row.id,
         realisasi_mxd_20dc: Number(realMxd20 || 0),
         realisasi_mxd_40hc: Number(realMxd40 || 0),
         realisasi_fxd_20dc: Number(realFxd20 || 0),
         realisasi_fxd_40hc: Number(realFxd40 || 0),
-      });
-      toast.success('Berhasil memperbarui realisasi');
-      await onUpdated();
-      onClose();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.msg || 'Gagal memperbarui realisasi');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const saveShipside = async () => {
-    if (!row) return;
-    setSaving(true);
-    try {
-      await apiClient.post('/container_movements/shipside', {
-        id: row.id,
         shipside_yes_mxd_20dc: Number(yesMxd20 || 0),
         shipside_yes_mxd_40hc: Number(yesMxd40 || 0),
         shipside_yes_fxd_20dc: Number(yesFxd20 || 0),
@@ -268,11 +256,17 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
         shipside_no_fxd_40hc: Number(noFxd40 || 0),
         obstacles: obstaclesValue,
       });
-      toast.success('Berhasil memperbarui shipside');
+
+      toast.success('Berhasil memperbarui Realisasi dan Shipside');
       await onUpdated();
       onClose();
     } catch (e: any) {
-      toast.error(e?.response?.data?.msg || 'Gagal memperbarui shipside');
+      const data = e?.response?.data;
+      if (data?.violations && Array.isArray(data.violations) && data.violations.length > 0) {
+        data.violations.forEach((v: any) => toast.error(v?.msg || data?.msg || 'Input melebihi batas'));
+      } else {
+        toast.error(data?.msg || 'Gagal memperbarui Realisasi/Shipside');
+      }
     } finally {
       setSaving(false);
     }
@@ -282,25 +276,46 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
     if (!row) return;
     setSaving(true);
     try {
-      await apiClient.post('/container_movements/shipside', {
+      await apiClient.post('/container_movements/obstacles', {
         id: row.id,
-        shipside_yes_mxd_20dc: row.shipside_yes_mxd_20dc,
-        shipside_yes_mxd_40hc: row.shipside_yes_mxd_40hc,
-        shipside_yes_fxd_20dc: row.shipside_yes_fxd_20dc,
-        shipside_yes_fxd_40hc: row.shipside_yes_fxd_40hc,
-        shipside_no_mxd_20dc: row.shipside_no_mxd_20dc,
-        shipside_no_mxd_40hc: row.shipside_no_mxd_40hc,
-        shipside_no_fxd_20dc: row.shipside_no_fxd_20dc,
-        shipside_no_fxd_40hc: row.shipside_no_fxd_40hc,
         obstacles: obstaclesValue,
       });
-      toast.success('Berhasil memperbarui obstacles');
+      toast.success('Berhasil memperbarui Obstacles');
       await onUpdated();
       onClose();
     } catch (e: any) {
       toast.error(e?.response?.data?.msg || 'Gagal memperbarui data');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Tekan Enter = klik Simpan (kecuali fokus di textarea)
+  const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
+    if (e.key !== 'Enter' || saving) return;
+    const target = e.target as HTMLElement;
+    const tag = target?.tagName?.toLowerCase();
+    if (tag === 'textarea') return; // biarkan Enter buat baris baru di textarea
+
+    e.preventDefault();
+    switch (activeTab) {
+      case 'bongkaran':
+        void saveBongkaran();
+        break;
+      case 'pengajuan':
+        void savePengajuan();
+        break;
+      case 'acc_pengajuan':
+        void saveAccPengajuan();
+        break;
+      case 'realisasi':
+        void saveRealisasiAndShipside();
+        break;
+      case 'obstacles':
+        void saveObstacles();
+        break;
+      default:
+        break;
     }
   };
 
@@ -354,35 +369,36 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
         );
       case 'realisasi':
         return (
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <NumberInput label="Realisasi MXD 20DC" value={realMxd20} onChange={setRealMxd20} />
-              <NumberInput label="Realisasi MXD 40HC" value={realMxd40} onChange={setRealMxd40} />
-              <NumberInput label="Realisasi FXD 20DC" value={realFxd20} onChange={setRealFxd20} />
-              <NumberInput label="Realisasi FXD 40HC" value={realFxd40} onChange={setRealFxd40} />
+          <div className="space-y-5">
+            {/* Realisasi All Depo */}
+            <div>
+              <h4 className="text-sm font-medium text-slate-800 mb-3">Realisasi All Depo</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <NumberInput label="Realisasi MXD 20DC" value={realMxd20} onChange={setRealMxd20} />
+                <NumberInput label="Realisasi MXD 40HC" value={realMxd40} onChange={setRealMxd40} />
+                <NumberInput label="Realisasi FXD 20DC" value={realFxd20} onChange={setRealFxd20} />
+                <NumberInput label="Realisasi FXD 40HC" value={realFxd40} onChange={setRealFxd40} />
+              </div>
             </div>
+
+            {/* Shipside */}
+            <div>
+              <h4 className="text-sm font-medium text-slate-800 mb-3">Shipside</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <NumberInput label="Shipside YES MXD 20DC" value={yesMxd20} onChange={setYesMxd20} />
+                <NumberInput label="Shipside YES MXD 40HC" value={yesMxd40} onChange={setYesMxd40} />
+                <NumberInput label="Shipside YES FXD 20DC" value={yesFxd20} onChange={setYesFxd20} />
+                <NumberInput label="Shipside YES FXD 40HC" value={yesFxd40} onChange={setYesFxd40} />
+                <NumberInput label="Shipside NO MXD 20DC" value={noMxd20} onChange={setNoMxd20} />
+                <NumberInput label="Shipside NO MXD 40HC" value={noMxd40} onChange={setNoMxd40} />
+                <NumberInput label="Shipside NO FXD 20DC" value={noFxd20} onChange={setNoFxd20} />
+                <NumberInput label="Shipside NO FXD 40HC" value={noFxd40} onChange={setNoFxd40} />
+              </div>
+            </div>
+
             <div className="flex justify-end gap-3 pt-2">
               <button onClick={onClose} disabled={saving} className="px-4 py-2 rounded-md border border-slate-300 text-slate-600 hover:bg-slate-100 text-sm disabled:opacity-50">Batal</button>
-              <button onClick={saveRealisasi} disabled={saving} className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 text-sm disabled:opacity-50">{saving ? 'Menyimpan...' : 'Simpan'}</button>
-            </div>
-          </div>
-        );
-      case 'shipside':
-        return (
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <NumberInput label="Shipside YES MXD 20DC" value={yesMxd20} onChange={setYesMxd20} />
-              <NumberInput label="Shipside YES MXD 40HC" value={yesMxd40} onChange={setYesMxd40} />
-              <NumberInput label="Shipside YES FXD 20DC" value={yesFxd20} onChange={setYesFxd20} />
-              <NumberInput label="Shipside YES FXD 40HC" value={yesFxd40} onChange={setYesFxd40} />
-              <NumberInput label="Shipside NO MXD 20DC" value={noMxd20} onChange={setNoMxd20} />
-              <NumberInput label="Shipside NO MXD 40HC" value={noMxd40} onChange={setNoMxd40} />
-              <NumberInput label="Shipside NO FXD 20DC" value={noFxd20} onChange={setNoFxd20} />
-              <NumberInput label="Shipside NO FXD 40HC" value={noFxd40} onChange={setNoFxd40} />
-            </div>
-            <div className="flex justify-end gap-3 pt-2">
-              <button onClick={onClose} disabled={saving} className="px-4 py-2 rounded-md border border-slate-300 text-slate-600 hover:bg-slate-100 text-sm disabled:opacity-50">Batal</button>
-              <button onClick={saveShipside} disabled={saving} className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 text-sm disabled:opacity-50">{saving ? 'Menyimpan...' : 'Simpan'}</button>
+              <button onClick={saveRealisasiAndShipside} disabled={saving} className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 text-sm disabled:opacity-50">{saving ? 'Menyimpan...' : 'Simpan'}</button>
             </div>
           </div>
         );
@@ -427,7 +443,7 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={'Edit Voyage'}>
       {row ? (
-        <div className="space-y-5">
+        <div className="space-y-5" onKeyDown={handleKeyDown}>
           {/* Voyage Basic Info */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm bg-slate-50 p-3 rounded-md border border-slate-200">
             <div>
@@ -462,7 +478,7 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
                   disabled={tab.disabled}
                   className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 ${
                     activeTab === tab.key
-                      ? 'bg-emerald-600 text-white shadow'
+                      ? 'bg-emerald-600 hover:bg-emerald-800 text-white shadow'
                       : 'bg-white border border-slate-300 text-slate-600'
                   } ${
                     tab.disabled
@@ -475,7 +491,9 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
                 </button>
               ))}
             </div>
-            <div className="pt-4">{renderTabContent()}</div>
+            <div className="pt-4">
+              {renderTabContent()}
+            </div>
           </div>
         </div>
       ) : (
