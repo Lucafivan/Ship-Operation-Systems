@@ -78,22 +78,22 @@ const Register: React.FC = () => {
 
             {/* username */}
             <label className="block mt-5 text-xs text-gray-600 text-left">username</label>
-            <Input type="text" hasError={!!errors.username} {...register("username")} />
+            <Input type="text" placeholder='username' hasError={!!errors.username} {...register("username")} />
             {errors.username && <p className="mt-1 text-xs text-red-600">{errors.username.message}</p>}
 
             {/* email */}
             <label className="block mt-4 text-xs text-gray-600 text-left">email</label>
-            <Input type="email" hasError={!!errors.email} {...register("email")} />
+            <Input type="email" placeholder='mail@email.com' hasError={!!errors.email} {...register("email")} />
             {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
 
             {/* password */}
             <label className="block mt-4 text-xs text-gray-600 text-left">password</label>
-            <Input type="password" hasError={!!errors.password} {...register("password")} />
+            <Input type="password" placeholder='password' hasError={!!errors.password} {...register("password")} />
             {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
 
             {/* confirm password */}
             <label className="block mt-4 text-xs text-gray-600 text-left">confirm password</label>
-            <Input type="password" hasError={!!errors.confirmPassword} {...register("confirmPassword")} />
+            <Input type="password" placeholder='password' hasError={!!errors.confirmPassword} {...register("confirmPassword")} />
             {errors.confirmPassword && <p className="mt-1 text-xs text-red-600">{errors.confirmPassword.message}</p>}
 
             {/* Actions */}

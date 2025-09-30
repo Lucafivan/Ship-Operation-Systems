@@ -70,10 +70,10 @@ const LoginPage: React.FC = () => {
             <h2 className="text-2xl font-bold text-[#2b5b2f]">Login</h2>
             {/* Input fields */}
             <label className="block mt-5 text-xs text-gray-600 text-left">email</label>
-            <Input type="email" placeholder="contoh@email.com" hasError={!!errors.email} {...register("email")} />
+            <Input type="email" placeholder="mail@email.com" hasError={!!errors.email} {...register("email")} />
             {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
             <label className="block mt-4 text-xs text-gray-600 text-left">password</label>
-            <Input type="password" placeholder="" hasError={!!errors.password} {...register("password")} />
+            <Input type="password" placeholder="password" hasError={!!errors.password} {...register("password")} />
             {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
             {/* Actions */}
             <div className="mt-6 flex items-center gap-4">
