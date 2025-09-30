@@ -56,6 +56,11 @@ const MonitoringVoyages: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [data, setData] = useState<ContainerMovement[]>([]);
   const [loading, setLoading] = useState(true);
+  // Konfigurasi tampilan scroll body tabel
+  const MAX_VISIBLE_ROWS = 5; // tampilkan maksimal 5 baris sebelum scroll
+  const BODY_ROW_APPROX_PX = 30; // tinggi estimasi per baris (padding + font)
+  const HEADER_STACK_PX = 180; // tinggi header multi-row (4 lapis)
+  const maxBodyHeight = `calc(${HEADER_STACK_PX}px + ${BODY_ROW_APPROX_PX * MAX_VISIBLE_ROWS}px)`;
   
   type DatePreset = 'all' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom';
   const [datePreset, setDatePreset] = useState<DatePreset>('all');
@@ -285,58 +290,75 @@ const MonitoringVoyages: React.FC = () => {
           </Modal>
         </div>
       </div>
-      <div className="overflow-x-auto py-4">
-        <table className="min-w-[1200px] w-full text-xs md:text-sm bg-white shadow-lg rounded-xl ring-1 ring-slate-200">
-          <thead className="bg-gradient-to-r from-green-700 to-emerald-600">
+      {/* Restyled table section */}
+      <section className="bg-white backdrop-blur rounded-xl p-4 shadow mt-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-medium text-slate-800">Daftar Container Movement</h2>
+          <button
+            onClick={fetchData}
+            className="text-sm text-blue-600 hover:underline disabled:opacity-50"
+            disabled={loading}
+            type="button"
+          >
+            Refresh
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <div
+            className={`overflow-y-auto ${sortedData.length > MAX_VISIBLE_ROWS ? 'shadow-inner' : ''} custom-scroll`}
+            style={{ maxHeight: sortedData.length > MAX_VISIBLE_ROWS ? maxBodyHeight : 'auto' }}
+          >
+            <table className="min-w-[1200px] w-full text-xs md:text-sm border-collapse">
+              <thead className="sticky top-0 bg-gray-100 z-10 text-slate-700">
         <tr className="text-white">
-          <th className="p-2 border border-slate-200/30" rowSpan={4}>Action</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={4} aria-sort={sortConfig?.key === "vessel_name" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
+          <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4}>Action</th>
+          <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "vessel_name" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
             <button onClick={() => requestSort("vessel_name")} className="flex items-center gap-1 hover:opacity-90">
               Vessel
               <span className="text-[10px] opacity-80">{sortConfig?.key === "vessel_name" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
             </button>
           </th>
-          <th className="p-2 border border-slate-200/30" rowSpan={4} aria-sort={sortConfig?.key === "voyage_number" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
+          <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "voyage_number" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
             <button onClick={() => requestSort("voyage_number")} className="flex items-center gap-1 hover:opacity-90">
               Voyage Number
               <span className="text-[10px] opacity-80">{sortConfig?.key === "voyage_number" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
             </button>
           </th>
-          <th className="p-2 border border-slate-200/30" rowSpan={4} aria-sort={sortConfig?.key === "voyage_year" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
+          <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "voyage_year" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
             <button onClick={() => requestSort("voyage_year")} className="flex items-center gap-1 hover:opacity-90">
               Voyage Year
               <span className="text-[10px] opacity-80">{sortConfig?.key === "voyage_year" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
             </button>
           </th>
-          <th className="p-2 border border-slate-200/30" rowSpan={4} aria-sort={sortConfig?.key === "voyage_berth_loc" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
+          <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "voyage_berth_loc" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
             <button onClick={() => requestSort("voyage_berth_loc")} className="flex items-center gap-1 hover:opacity-90">
               Berth Location
               <span className="text-[10px] opacity-80">{sortConfig?.key === "voyage_berth_loc" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
             </button>
           </th>
-          <th className="p-2 border border-slate-200/30" rowSpan={4} aria-sort={sortConfig?.key === "voyage_date_berth" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
+          <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "voyage_date_berth" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
             <button onClick={() => requestSort("voyage_date_berth")} className="flex items-center gap-1 hover:opacity-90">
               Date Berth
               <span className="text-[10px] opacity-80">{sortConfig?.key === "voyage_date_berth" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
             </button>
           </th>
-          <th className="p-2 border border-slate-200/30" colSpan={4}>Bongkaran</th>
-          <th className="p-2 border border-slate-200/30" colSpan={4}>Pengajuan</th>
-          <th className="p-2 border border-slate-200/30" colSpan={4}>Acc Pengajuan</th>
-          <th className="p-2 border border-slate-200/30" colSpan={3}>Total Pengajuan</th>
-          <th className="p-2 border border-slate-200/30" colSpan={4}>Realisasi All Depo</th>
-          <th className="p-2 border border-slate-200/30" colSpan={8}>Shipside</th>
-          <th className="p-2 border border-slate-200/30" colSpan={3}>Total Realisasi</th>
-          <th className="p-2 border border-slate-200/30" colSpan={3}>Turun CY</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={4}>% Vessel</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={4}>Obstacles</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={4} aria-sort={sortConfig?.key === "created_at" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={4}>Bongkaran</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={4}>Pengajuan</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={4}>Acc Pengajuan</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={3}>Total Pengajuan</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={4}>Realisasi All Depo</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={8}>Shipside</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={3}>Total Realisasi</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={3}>Turun CY</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={4}>% Vessel</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={4}>Obstacles</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={4} aria-sort={sortConfig?.key === "created_at" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
             <button onClick={() => requestSort("created_at")} className="flex items-center gap-1 hover:opacity-90">
               Created
               <span className="text-[10px] opacity-80">{sortConfig?.key === "created_at" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
             </button>
           </th>
-          <th className="p-2 border border-slate-200/30" rowSpan={4} aria-sort={sortConfig?.key === "updated_at" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={4} aria-sort={sortConfig?.key === "updated_at" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
             <button onClick={() => requestSort("updated_at")} className="flex items-center gap-1 hover:opacity-90">
               Updated
               <span className="text-[10px] opacity-80">{sortConfig?.key === "updated_at" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
@@ -344,66 +366,66 @@ const MonitoringVoyages: React.FC = () => {
           </th>
         </tr>
         <tr className="text-white">
-          <th className="p-2 border border-slate-200/30" colSpan={2}>Empty</th>
-          <th className="p-2 border border-slate-200/30" colSpan={2}>Full</th>
-          <th className="p-2 border border-slate-200/30" colSpan={2}>Empty</th>
-          <th className="p-2 border border-slate-200/30" colSpan={2}>Full</th>
-          <th className="p-2 border border-slate-200/30" colSpan={2}>Empty</th>
-          <th className="p-2 border border-slate-200/30" colSpan={2}>Full</th>
-          <th className="p-2 border border-slate-200/30" colSpan={2}>Box</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={3}>Teus Pengajuan</th>
-          <th className="p-2 border border-slate-200/30" colSpan={2}>MXD</th>
-          <th className="p-2 border border-slate-200/30" colSpan={2}>FXD</th>
-          <th className="p-2 border border-slate-200/30" colSpan={4}>YES</th>
-          <th className="p-2 border border-slate-200/30" colSpan={4}>NO</th>
-          <th className="p-2 border border-slate-200/30" colSpan={2}>Box</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={3}>Teus Realisasi</th>
-          <th className="p-2 border border-slate-200/30" colSpan={2}>Box</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={3}>Teus Turun CY</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Empty</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Full</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Empty</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Full</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Empty</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Full</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Box</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={3}>Teus Pengajuan</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>MXD</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>FXD</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={4}>YES</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={4}>NO</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Box</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={3}>Teus Realisasi</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Box</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={3}>Teus Turun CY</th>
         </tr>
         <tr className="text-white">
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-slate-200/30" colSpan={2}>MXD</th>
-          <th className="p-2 border border-slate-200/30" colSpan={2}>FXD</th>
-          <th className="p-2 border border-slate-200/30" colSpan={2}>MXD</th>
-          <th className="p-2 border border-slate-200/30" colSpan={2}>FXD</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-slate-200/30" rowSpan={2}>40HC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>MXD</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>FXD</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>MXD</th>
+          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>FXD</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
         </tr>
         <tr className="text-white">
-          <th className="p-2 border border-slate-200/30">20DC</th>
-          <th className="p-2 border border-slate-200/30">40HC</th>
-          <th className="p-2 border border-slate-200/30">20DC</th>
-          <th className="p-2 border border-slate-200/30">40HC</th>
-          <th className="p-2 border border-slate-200/30">20DC</th>
-          <th className="p-2 border border-slate-200/30">40HC</th>
-          <th className="p-2 border border-slate-200/30">20DC</th>
-          <th className="p-2 border border-slate-200/30">40HC</th>
+          <th className="p-2 border border-white bg-emerald-600">20DC</th>
+          <th className="p-2 border border-white bg-emerald-600">40HC</th>
+          <th className="p-2 border border-white bg-emerald-600">20DC</th>
+          <th className="p-2 border border-white bg-emerald-600">40HC</th>
+          <th className="p-2 border border-white bg-emerald-600">20DC</th>
+          <th className="p-2 border border-white bg-emerald-600">40HC</th>
+          <th className="p-2 border border-white bg-emerald-600">20DC</th>
+          <th className="p-2 border border-white bg-emerald-600">40HC</th>
         </tr>
           </thead>
-          <tbody>
+              <tbody>
         {sortedData.map((row) => (
-          <tr key={row.id} className="even:bg-emerald-50 hover:bg-emerald-100/60 transition-colors">
-            <td className="p-2 border border-slate-200 text-center">
+          <tr key={row.id} className="hover:bg-gray-50 border-b last:border-b-0">
+            <td className="p-2 align-middle text-center">
               <button
                 onClick={() => openEdit(row)}
                 className="text-emerald-700 hover:text-emerald-800 hover:underline text-[11px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-400 rounded-sm px-1 py-0.5"
@@ -412,65 +434,67 @@ const MonitoringVoyages: React.FC = () => {
                 Edit
               </button>
             </td>
-            <td className="p-2 border border-slate-200">{row.vessel_name}</td>
-            <td className="p-2 border border-slate-200">{row.voyage_number}</td>
-            <td className="p-2 border border-slate-200">{row.voyage_year}</td>
-            <td className="p-2 border border-slate-200">{row.voyage_berth_loc}</td>
-            <td className="p-2 border border-slate-200">{row.voyage_date_berth?.slice(0, 10)}</td>
+            <td className="p-2 align-middle">{row.vessel_name}</td>
+            <td className="p-2 align-middle">{row.voyage_number}</td>
+            <td className="p-2 align-middle">{row.voyage_year}</td>
+            <td className="p-2 align-middle">{row.voyage_berth_loc}</td>
+            <td className="p-2 align-middle">{row.voyage_date_berth?.slice(0, 10)}</td>
             {/* Bongkaran */}
-            <td className="p-2 border border-slate-200">{row.bongkaran_empty_20dc}</td>
-            <td className="p-2 border border-slate-200">{row.bongkaran_empty_40hc}</td>
-            <td className="p-2 border border-slate-200">{row.bongkaran_full_20dc}</td>
-            <td className="p-2 border border-slate-200">{row.bongkaran_full_40hc}</td>
+            <td className="p-2 align-middle">{row.bongkaran_empty_20dc}</td>
+            <td className="p-2 align-middle">{row.bongkaran_empty_40hc}</td>
+            <td className="p-2 align-middle">{row.bongkaran_full_20dc}</td>
+            <td className="p-2 align-middle">{row.bongkaran_full_40hc}</td>
             {/* Pengajuan */}
-            <td className="p-2 border border-slate-200">{row.pengajuan_empty_20dc}</td>
-            <td className="p-2 border border-slate-200">{row.pengajuan_empty_40hc}</td>
-            <td className="p-2 border border-slate-200">{row.pengajuan_full_20dc}</td>
-            <td className="p-2 border border-slate-200">{row.pengajuan_full_40hc}</td>
+            <td className="p-2 align-middle">{row.pengajuan_empty_20dc}</td>
+            <td className="p-2 align-middle">{row.pengajuan_empty_40hc}</td>
+            <td className="p-2 align-middle">{row.pengajuan_full_20dc}</td>
+            <td className="p-2 align-middle">{row.pengajuan_full_40hc}</td>
             {/* Acc Pengajuan */}
-            <td className="p-2 border border-slate-200">{row.acc_pengajuan_empty_20dc}</td>
-            <td className="p-2 border border-slate-200">{row.acc_pengajuan_empty_40hc}</td>
-            <td className="p-2 border border-slate-200">{row.acc_pengajuan_full_20dc}</td>
-            <td className="p-2 border border-slate-200">{row.acc_pengajuan_full_40hc}</td>
+            <td className="p-2 align-middle">{row.acc_pengajuan_empty_20dc}</td>
+            <td className="p-2 align-middle">{row.acc_pengajuan_empty_40hc}</td>
+            <td className="p-2 align-middle">{row.acc_pengajuan_full_20dc}</td>
+            <td className="p-2 align-middle">{row.acc_pengajuan_full_40hc}</td>
             {/* Total Pengajuan */}
-            <td className="p-2 border border-slate-200">{row.total_pengajuan_20dc}</td>
-            <td className="p-2 border border-slate-200">{row.total_pengajuan_40hc}</td>
-            <td className="p-2 border border-slate-200">{row.teus_pengajuan}</td>
+            <td className="p-2 align-middle">{row.total_pengajuan_20dc}</td>
+            <td className="p-2 align-middle">{row.total_pengajuan_40hc}</td>
+            <td className="p-2 align-middle">{row.teus_pengajuan}</td>
             {/* Realisasi All Depo */}
-            <td className="p-2 border border-slate-200">{row.realisasi_mxd_20dc}</td>
-            <td className="p-2 border border-slate-200">{row.realisasi_mxd_40hc}</td>
-            <td className="p-2 border border-slate-200">{row.realisasi_fxd_20dc}</td>
-            <td className="p-2 border border-slate-200">{row.realisasi_fxd_40hc}</td>
+            <td className="p-2 align-middle">{row.realisasi_mxd_20dc}</td>
+            <td className="p-2 align-middle">{row.realisasi_mxd_40hc}</td>
+            <td className="p-2 align-middle">{row.realisasi_fxd_20dc}</td>
+            <td className="p-2 align-middle">{row.realisasi_fxd_40hc}</td>
             {/* Shipside YES MXD */}
-            <td className="p-2 border border-slate-200">{row.shipside_yes_mxd_20dc}</td>
-            <td className="p-2 border border-slate-200">{row.shipside_yes_mxd_40hc}</td>
+            <td className="p-2 align-middle">{row.shipside_yes_mxd_20dc}</td>
+            <td className="p-2 align-middle">{row.shipside_yes_mxd_40hc}</td>
             {/* Shipside YES FXD */}
-            <td className="p-2 border border-slate-200">{row.shipside_yes_fxd_20dc}</td>
-            <td className="p-2 border border-slate-200">{row.shipside_yes_fxd_40hc}</td>
+            <td className="p-2 align-middle">{row.shipside_yes_fxd_20dc}</td>
+            <td className="p-2 align-middle">{row.shipside_yes_fxd_40hc}</td>
             {/* Shipside NO MXD */}
-            <td className="p-2 border border-slate-200">{row.shipside_no_mxd_20dc}</td>
-            <td className="p-2 border border-slate-200">{row.shipside_no_mxd_40hc}</td>
+            <td className="p-2 align-middle">{row.shipside_no_mxd_20dc}</td>
+            <td className="p-2 align-middle">{row.shipside_no_mxd_40hc}</td>
             {/* Shipside NO FXD */}
-            <td className="p-2 border border-slate-200">{row.shipside_no_fxd_20dc}</td>
-            <td className="p-2 border border-slate-200">{row.shipside_no_fxd_40hc}</td>
+            <td className="p-2 align-middle">{row.shipside_no_fxd_20dc}</td>
+            <td className="p-2 align-middle">{row.shipside_no_fxd_40hc}</td>
             {/* Total Realisasi */}
-            <td className="p-2 border border-slate-200">{row.total_realisasi_20dc}</td>
-            <td className="p-2 border border-slate-200">{row.total_realisasi_40hc}</td>
-            <td className="p-2 border border-slate-200">{row.teus_realisasi}</td>
+            <td className="p-2 align-middle">{row.total_realisasi_20dc}</td>
+            <td className="p-2 align-middle">{row.total_realisasi_40hc}</td>
+            <td className="p-2 align-middle">{row.teus_realisasi}</td>
             {/* Turun CY */}
-            <td className="p-2 border border-slate-200">{row.turun_cy_20dc}</td>
-            <td className="p-2 border border-slate-200">{row.turun_cy_40hc}</td>
-            <td className="p-2 border border-slate-200">{row.teus_turun_cy}</td>
+            <td className="p-2 align-middle">{row.turun_cy_20dc}</td>
+            <td className="p-2 align-middle">{row.turun_cy_40hc}</td>
+            <td className="p-2 align-middle">{row.teus_turun_cy}</td>
             {/* Sisa kolom */}
-            <td className="p-2 border border-slate-200">{(row.percentage_vessel * 100).toFixed(1)}%</td>
-            <td className="p-2 border border-slate-200">{row.obstacles}</td>
-            <td className="p-2 border border-slate-200">{row.created_at?.slice(0, 10)}</td>
-            <td className="p-2 border border-slate-200">{row.updated_at?.slice(0, 10)}</td>
+            <td className="p-2 align-middle">{(row.percentage_vessel * 100).toFixed(1)}%</td>
+            <td className="p-2 align-middle">{row.obstacles}</td>
+            <td className="p-2 align-middle">{row.created_at?.slice(0, 10)}</td>
+            <td className="p-2 align-middle">{row.updated_at?.slice(0, 10)}</td>
           </tr>
         ))}
-          </tbody>
-        </table>
-      </div>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
       <EditContainerMovementModal
         isOpen={isEditOpen}
         onClose={closeEdit}

@@ -4,7 +4,7 @@ from .models import (
     Voyage
 )
 from flask import jsonify, request, Blueprint
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 
 main_bp = Blueprint('main_bp', __name__)
 
