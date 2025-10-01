@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
-from .models import db, ContainerMovement, Voyage
+from .models import db, ContainerMovement, Voyage, Port
 from sqlalchemy.sql import func
 
 cm_bp = Blueprint('container_movements', __name__)
@@ -9,13 +9,13 @@ cm_bp = Blueprint('container_movements', __name__)
 @jwt_required()
 def get_container_movements():
 
-    results = db.session.query(Voyage, ContainerMovement).outerjoin(
+    results = db.session.query(Voyage, ContainerMovement, Port).outerjoin(
         ContainerMovement, Voyage.id == ContainerMovement.voyage_id
-    ).all()
+    ).join(Port, Voyage.port_id == Port.id).all()
 
     response_data = []
 
-    for voyage, movement in results:
+    for voyage, movement, port in results:
         
         item_data = {
             "id": movement.id if movement else None,
@@ -23,7 +23,8 @@ def get_container_movements():
             "vessel_name": voyage.vessel.name if voyage.vessel else None,
             "voyage_number": voyage.voyage_no,
             "voyage_year": voyage.voyage_yr,
-            "voyage_berth_loc": voyage.berth_loc,
+            "port_id": voyage.port_id,
+            "port_name": port.name if port else (voyage.port.name if voyage.port else None),
             "voyage_date_berth": voyage.date_berth.isoformat() if voyage.date_berth else None,
 
             "bongkaran_empty_20dc": movement.bongkaran_empty_20dc if movement else None,
@@ -359,23 +360,25 @@ def get_summary_by_port():
     dan realisasi per lokasi sandar (port).
     """
     summary_data = db.session.query(
-        Voyage.berth_loc,
+        Port.id.label('port_id'),
+        Port.name.label('port_name'),
         func.sum(ContainerMovement.teus_pengajuan).label('total_pengajuan'),
-        # Di sini kita asumsikan acc_pengajuan sama dengan total_pengajuan untuk chart
         func.sum(ContainerMovement.teus_pengajuan).label('acc_pengajuan'),
         func.sum(ContainerMovement.teus_realisasi).label('total_realisasi')
-    ).join(ContainerMovement, Voyage.id == ContainerMovement.voyage_id)\
-     .group_by(Voyage.berth_loc)\
+    ).join(Voyage, Voyage.id == ContainerMovement.voyage_id)\
+     .join(Port, Voyage.port_id == Port.id)\
+     .group_by(Port.id, Port.name)\
      .all()
 
     result = [
         {
-            "port": data.berth_loc,
+            "port_id": data.port_id,
+            "port_name": data.port_name,
             "total_pengajuan": float(data.total_pengajuan or 0),
             "acc_pengajuan": float(data.acc_pengajuan or 0),
             "total_realisasi": float(data.total_realisasi or 0),
         }
-        for data in summary_data if data.berth_loc
+        for data in summary_data
     ]
     
     return jsonify(result), 200

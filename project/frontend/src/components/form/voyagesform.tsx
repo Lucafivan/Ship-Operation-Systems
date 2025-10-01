@@ -46,20 +46,26 @@ const VoyageForm: React.FC<VoyageFormProps> = ({ onSuccess }) => {
   }, []);
 
   const fields = [
-    { name: "vessel_id", label: "Vessel ID", type: "number", placeholder: "Masukkan ID Vessel (lihat daftar)" },
-    { name: "voyage_yr", label: "Tahun Voyage", type: "number", placeholder: "Contoh: 2025" },
-    { name: "berth_loc", label: "Lokasi Sandar", type: "select", placeholder: "Pilih lokasi sandar", options: ports.map(port => ({ value: port.name, label: port.name })) },
+    { name: "vessel_id", label: "Vessel", type: "select", placeholder: "Pilih vessel", options: vessels.map(v => ({ value: String(v.id), label: v.name })) },
+    { name: "voyage_yr", label: "Tahun Voyage", type: "number", placeholder: "2025" },
+    { name: "port_id", label: "Berth Location", type: "select", placeholder: "Pilih berth location", options: ports.map(port => ({ value: String(port.id), label: port.name })) },
     { name: "date_berth", label: "Tanggal Sandar", type: "date" },
   ];
 
   const handleSubmit = async (data: Record<string, any>) => {
-    if (!data.vessel_id || !data.voyage_yr || !data.berth_loc || !data.date_berth) {
+    if (!data.vessel_id || !data.voyage_yr || !data.port_id || !data.date_berth) {
         toast.error("Semua field wajib diisi!");
         return;
     }
-    
+
+    const payload = {
+      vessel_id: Number(data.vessel_id),
+      voyage_yr: Number(data.voyage_yr),
+      port_id: Number(data.port_id),
+      date_berth: data.date_berth,
+    };
     try {
-      const res = await apiClient.post("/voyages", data);
+      await apiClient.post("/voyages", payload);
       toast.success("Voyage berhasil dibuat!");
       if (onSuccess) onSuccess();
     } catch (err: any) {
@@ -78,32 +84,6 @@ const VoyageForm: React.FC<VoyageFormProps> = ({ onSuccess }) => {
     // Gunakan React Fragment <> agar bisa menampung form dan modal
     <>
       <div className="space-y-4">
-        {/* 4. Modifikasi bagian daftar vessel */}
-        <div className="bg-slate-100 p-3 rounded-lg border border-slate-200">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="font-semibold text-gray-700">Daftar Vessel Tersedia:</h3>
-            {/* Tampilkan tombol hanya jika data lebih dari 5 */}
-            {vessels.length > 5 && (
-              <button 
-                onClick={() => setIsModalOpen(true)}
-                className="text-sm text-green-600 hover:underline font-semibold"
-              >
-                Lihat Semua
-              </button>
-            )}
-          </div>
-          {vessels.length > 0 ? (
-            <ul className="list-disc list-inside text-sm text-gray-600 max-h-28 overflow-y-auto">
-              {/* Tampilkan hanya 5 item pertama */}
-              {vessels.slice(0, 5).map((v) => (
-                <li key={v.id}><strong>{v.name}</strong> (ID: {v.id})</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-gray-500">Memuat daftar vessel...</p>
-          )}
-        </div>
-
         <DynamicForm
           title="Form Tambah Voyage Baru"
           fields={fields}

@@ -11,7 +11,8 @@ interface ContainerMovement {
   vessel_name: string;
   voyage_number: string;
   voyage_year: number;
-  voyage_berth_loc: string;
+  port_id: number;
+  port_name: string;
   voyage_date_berth: string;
   bongkaran_empty_20dc: number;
   bongkaran_empty_40hc: number;
@@ -70,7 +71,7 @@ const MonitoringVoyages: React.FC = () => {
     | "vessel_name"
     | "voyage_number"
     | "voyage_year"
-    | "voyage_berth_loc"
+    | "port_name"
     | "voyage_date_berth"
     | "created_at"
     | "updated_at";
@@ -330,10 +331,10 @@ const MonitoringVoyages: React.FC = () => {
               <span className="text-[10px] opacity-80">{sortConfig?.key === "voyage_year" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
             </button>
           </th>
-          <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "voyage_berth_loc" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
-            <button onClick={() => requestSort("voyage_berth_loc")} className="flex items-center gap-1 hover:opacity-90">
-              Berth Location
-              <span className="text-[10px] opacity-80">{sortConfig?.key === "voyage_berth_loc" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
+          <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "port_name" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
+            <button onClick={() => requestSort("port_name")} className="flex items-center gap-1 hover:opacity-90">
+              <span>Berth Location</span>
+              <span className="text-[10px] opacity-80">{sortConfig?.key === "port_name" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
             </button>
           </th>
           <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "voyage_date_berth" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
@@ -421,7 +422,7 @@ const MonitoringVoyages: React.FC = () => {
           <th className="p-2 border border-white bg-emerald-600">20DC</th>
           <th className="p-2 border border-white bg-emerald-600">40HC</th>
         </tr>
-          </thead>
+              </thead>
               <tbody>
         {sortedData.map((row) => (
           <tr key={row.id} className="hover:bg-gray-50 border-b last:border-b-0">
@@ -437,7 +438,7 @@ const MonitoringVoyages: React.FC = () => {
             <td className="p-2 align-middle">{row.vessel_name}</td>
             <td className="p-2 align-middle">{row.voyage_number}</td>
             <td className="p-2 align-middle">{row.voyage_year}</td>
-            <td className="p-2 align-middle">{row.voyage_berth_loc}</td>
+            <td className="p-2 align-middle">{row.port_name}</td>
             <td className="p-2 align-middle">{row.voyage_date_berth?.slice(0, 10)}</td>
             {/* Bongkaran */}
             <td className="p-2 align-middle">{row.bongkaran_empty_20dc}</td>
