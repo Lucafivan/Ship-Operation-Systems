@@ -31,7 +31,7 @@ const PortPage: React.FC = () => {
 
   const fields = [
     { name: "name", label: "Nama Port", placeholder: "Masukkan nama port" },
-    { name: "code", label: "Kode (opsional)", placeholder: "Misal: TPK1" },
+    { name: "code", label: "Kode (opsional)", placeholder: "TPK1" },
   ];
 
   const handleSubmit = async (data: Record<string, any>) => {

@@ -26,7 +26,8 @@ interface ContainerMovement {
   vessel_name: string;
   voyage_number: string;
   voyage_year: number;
-  voyage_berth_loc: string;
+  port_id: number;
+  port_name: string;
   voyage_date_berth: string;
   bongkaran_empty_20dc: number;
   bongkaran_empty_40hc: number;
@@ -460,7 +461,7 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
             </div>
             <div>
               <p className="text-slate-500">Berth Location</p>
-              <p className="font-semibold">{row.voyage_berth_loc}</p>
+              <p className="font-semibold">{row.port_name}</p>
             </div>
             <div>
               <p className="text-slate-500">Date Berth</p>

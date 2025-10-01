@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
-from .models import db, ContainerMovement, Voyage
+from .models import db, ContainerMovement, Voyage, Port, PercentageContainerMovement
 from sqlalchemy.sql import func
 
 cm_bp = Blueprint('container_movements', __name__)
@@ -9,13 +9,13 @@ cm_bp = Blueprint('container_movements', __name__)
 @jwt_required()
 def get_container_movements():
 
-    results = db.session.query(Voyage, ContainerMovement).outerjoin(
+    results = db.session.query(Voyage, ContainerMovement, Port).outerjoin(
         ContainerMovement, Voyage.id == ContainerMovement.voyage_id
-    ).all()
+    ).join(Port, Voyage.port_id == Port.id).all()
 
     response_data = []
 
-    for voyage, movement in results:
+    for voyage, movement, port in results:
         
         item_data = {
             "id": movement.id if movement else None,
@@ -23,7 +23,8 @@ def get_container_movements():
             "vessel_name": voyage.vessel.name if voyage.vessel else None,
             "voyage_number": voyage.voyage_no,
             "voyage_year": voyage.voyage_yr,
-            "voyage_berth_loc": voyage.berth_loc,
+            "port_id": voyage.port_id,
+            "port_name": port.name if port else (voyage.port.name if voyage.port else None),
             "voyage_date_berth": voyage.date_berth.isoformat() if voyage.date_berth else None,
 
             "bongkaran_empty_20dc": movement.bongkaran_empty_20dc if movement else None,
@@ -96,17 +97,49 @@ def create_bongkaran():
         bongkaran_full_40hc=bongkaran_full_40hc
     )
     db.session.add(new_cm)
+    # Flush supaya ID tersedia sebelum membuat record persentase
+    db.session.flush()
+
+    # Hitung total bongkaran per size
+    total_bongkaran_20dc = bongkaran_empty_20dc + bongkaran_full_20dc
+    total_bongkaran_40hc = bongkaran_empty_40hc + bongkaran_full_40hc
+
+    # Buat record PercentageContainerMovement (awalnya pengajuan & acc belum ada => 0)
+    pcm = PercentageContainerMovement(
+        cm_id=new_cm.id,
+        total_bongkaran_20dc=total_bongkaran_20dc,
+        total_bongkaran_40hc=total_bongkaran_40hc,
+        # Field rasio pengajuan terhadap bongkaran masih 0 karena pengajuan belum diinput
+        bongkaran_pengajuan_empty_20dc=0,
+        bongkaran_pengajuan_full_20dc=0,
+        bongkaran_pengajuan_empty_40hc=0,
+        bongkaran_pengajuan_full_40hc=0,
+        # Persentase total pengajuan per size juga 0 (belum ada pengajuan)
+        percentage_pengajuan_20dc=0,
+        percentage_pengajuan_40hc=0
+    )
+    db.session.add(pcm)
     db.session.commit()
 
-    return jsonify({"msg": "Bongkaran berhasil dibuat", "container_movement": {
-        "id": new_cm.id,
-        "voyage_id": new_cm.voyage_id,
-        "bongkaran_empty_20dc": new_cm.bongkaran_empty_20dc,
-        "bongkaran_empty_40hc": new_cm.bongkaran_empty_40hc,
-        "bongkaran_full_20dc": new_cm.bongkaran_full_20dc,
-        "bongkaran_full_40hc": new_cm.bongkaran_full_40hc,
-        "created_at": new_cm.created_at.isoformat() if new_cm.created_at else None
-    }}), 201
+    return jsonify({
+        "msg": "Bongkaran & total bongkaran berhasil dibuat",
+        "container_movement": {
+            "id": new_cm.id,
+            "voyage_id": new_cm.voyage_id,
+            "bongkaran_empty_20dc": new_cm.bongkaran_empty_20dc,
+            "bongkaran_empty_40hc": new_cm.bongkaran_empty_40hc,
+            "bongkaran_full_20dc": new_cm.bongkaran_full_20dc,
+            "bongkaran_full_40hc": new_cm.bongkaran_full_40hc,
+            "created_at": new_cm.created_at.isoformat() if new_cm.created_at else None
+        },
+        "percentage_container_movement": {
+            "cm_id": pcm.cm_id,
+            "total_bongkaran_20dc": pcm.total_bongkaran_20dc,
+            "total_bongkaran_40hc": pcm.total_bongkaran_40hc,
+            "percentage_pengajuan_20dc": pcm.percentage_pengajuan_20dc,
+            "percentage_pengajuan_40hc": pcm.percentage_pengajuan_40hc
+        }
+    }), 201
 
 @cm_bp.route('/pengajuan', methods=['POST'])
 @jwt_required()
@@ -128,22 +161,81 @@ def create_pengajuan():
     if not cm:
         return jsonify({"msg": "ContainerMovement tidak ditemukan"}), 404
 
+    # Update nilai pengajuan di ContainerMovement
     cm.pengajuan_empty_20dc = pengajuan_empty_20dc
     cm.pengajuan_empty_40hc = pengajuan_empty_40hc
     cm.pengajuan_full_20dc = pengajuan_full_20dc
     cm.pengajuan_full_40hc = pengajuan_full_40hc
 
+    # Upsert ke tabel PercentageContainerMovement
+    pcm = PercentageContainerMovement.query.filter_by(cm_id=cm.id).first()
+    created_new_pcm = False
+    if not pcm:
+        pcm = PercentageContainerMovement(cm_id=cm.id)
+        pcm.total_bongkaran_20dc = (cm.bongkaran_empty_20dc or 0) + (cm.bongkaran_full_20dc or 0)
+        pcm.total_bongkaran_40hc = (cm.bongkaran_empty_40hc or 0) + (cm.bongkaran_full_40hc or 0)
+        db.session.add(pcm)
+        created_new_pcm = True
+
+    # Hitung total pengajuan per size
+    total_pengajuan_20dc = pengajuan_empty_20dc + pengajuan_full_20dc
+    total_pengajuan_40hc = pengajuan_empty_40hc + pengajuan_full_40hc
+
+    # Helper fungsi safe division (hasil 0..1; jika bongkaran 0 => 0)
+    def ratio(pengajuan, bongkaran):
+        if bongkaran and bongkaran > 0:
+            return pengajuan / bongkaran
+        return 0
+
+    # Rasio per kategori (pengajuan / bongkaran)
+    bongkaran_pengajuan_empty_20dc = ratio(pengajuan_empty_20dc, cm.bongkaran_empty_20dc)
+    bongkaran_pengajuan_full_20dc = ratio(pengajuan_full_20dc, cm.bongkaran_full_20dc)
+    bongkaran_pengajuan_empty_40hc = ratio(pengajuan_empty_40hc, cm.bongkaran_empty_40hc)
+    bongkaran_pengajuan_full_40hc = ratio(pengajuan_full_40hc, cm.bongkaran_full_40hc)
+
+    # Rasio total per size
+    percentage_pengajuan_20dc = ratio(total_pengajuan_20dc, pcm.total_bongkaran_20dc)
+    percentage_pengajuan_40hc = ratio(total_pengajuan_40hc, pcm.total_bongkaran_40hc)
+
+    pcm.bongkaran_pengajuan_empty_20dc = bongkaran_pengajuan_empty_20dc
+    pcm.bongkaran_pengajuan_full_20dc = bongkaran_pengajuan_full_20dc
+    pcm.bongkaran_pengajuan_empty_40hc = bongkaran_pengajuan_empty_40hc
+    pcm.bongkaran_pengajuan_full_40hc = bongkaran_pengajuan_full_40hc
+
+    pcm.total_pengajuan_20dc = total_pengajuan_20dc
+    pcm.total_pengajuan_40hc = total_pengajuan_40hc
+    pcm.percentage_pengajuan_20dc = percentage_pengajuan_20dc
+    pcm.percentage_pengajuan_40hc = percentage_pengajuan_40hc
+
+    if created_new_pcm:
+        db.session.add(pcm)
+
     db.session.commit()
 
-    return jsonify({"msg": "Pengajuan berhasil diperbarui", "container_movement": {
-        "id": cm.id,
-        "voyage_id": cm.voyage_id,
-        "pengajuan_empty_20dc": cm.pengajuan_empty_20dc,
-        "pengajuan_empty_40hc": cm.pengajuan_empty_40hc,
-        "pengajuan_full_20dc": cm.pengajuan_full_20dc,
-        "pengajuan_full_40hc": cm.pengajuan_full_40hc,
-        "updated_at": cm.updated_at.isoformat() if cm.updated_at else None
-    }}), 200
+    return jsonify({
+        "msg": "Pengajuan & persentase berhasil diperbarui",
+        "container_movement": {
+            "id": cm.id,
+            "voyage_id": cm.voyage_id,
+            "pengajuan_empty_20dc": cm.pengajuan_empty_20dc,
+            "pengajuan_empty_40hc": cm.pengajuan_empty_40hc,
+            "pengajuan_full_20dc": cm.pengajuan_full_20dc,
+            "pengajuan_full_40hc": cm.pengajuan_full_40hc,
+            "updated_at": cm.updated_at.isoformat() if cm.updated_at else None
+        },
+        "percentage_container_movement": {
+            "cm_id": pcm.cm_id,
+            "bongkaran_pengajuan_empty_20dc": pcm.bongkaran_pengajuan_empty_20dc,
+            "bongkaran_pengajuan_full_20dc": pcm.bongkaran_pengajuan_full_20dc,
+            "bongkaran_pengajuan_empty_40hc": pcm.bongkaran_pengajuan_empty_40hc,
+            "bongkaran_pengajuan_full_40hc": pcm.bongkaran_pengajuan_full_40hc,
+            "total_pengajuan_20dc": pcm.total_pengajuan_20dc,
+            "total_pengajuan_40hc": pcm.total_pengajuan_40hc,
+            "percentage_pengajuan_20dc": pcm.percentage_pengajuan_20dc,
+            "percentage_pengajuan_40hc": pcm.percentage_pengajuan_40hc,
+            "created": created_new_pcm
+        }
+    }), 200
 
 @cm_bp.route('/acc_pengajuan', methods=['POST'])
 @jwt_required()
@@ -199,20 +291,68 @@ def create_acc_pengajuan():
     cm.total_pengajuan_40hc = total_pengajuan_40hc
     cm.teus_pengajuan = teus_pengajuan
 
+    # Update / buat PercentageContainerMovement untuk rasio ACC terhadap Pengajuan & Bongkaran
+    pcm = PercentageContainerMovement.query.filter_by(cm_id=cm.id).first()
+    if not pcm:
+        # Seharusnya sudah dibuat saat bongkaran, tapi fallback jika belum ada
+        pcm = PercentageContainerMovement(cm_id=cm.id)
+        # Tarik total bongkaran dari cm (jika belum diset di pcm)
+        pcm.total_bongkaran_20dc = (cm.bongkaran_empty_20dc or 0) + (cm.bongkaran_full_20dc or 0)
+        pcm.total_bongkaran_40hc = (cm.bongkaran_empty_40hc or 0) + (cm.bongkaran_full_40hc or 0)
+        db.session.add(pcm)
+
+    # Total ACC per size
+    total_acc_20dc = acc_pengajuan_empty_20dc + acc_pengajuan_full_20dc
+    total_acc_40hc = acc_pengajuan_empty_40hc + acc_pengajuan_full_40hc
+
+    # Helper pembagi aman
+    def ratio(pengajuan, bongkaran):
+        if bongkaran and bongkaran > 0:
+            return pengajuan / bongkaran
+        return 0
+
+    # Rasio pengajuan -> ACC per kategori
+    pcm.pengajuan_acc_empty_20dc = ratio(acc_pengajuan_empty_20dc, cm.pengajuan_empty_20dc)
+    pcm.pengajuan_acc_full_20dc = ratio(acc_pengajuan_full_20dc, cm.pengajuan_full_20dc)
+    pcm.pengajuan_acc_empty_40hc = ratio(acc_pengajuan_empty_40hc, cm.pengajuan_empty_40hc)
+    pcm.pengajuan_acc_full_40hc = ratio(acc_pengajuan_full_40hc, cm.pengajuan_full_40hc)
+
+    # Simpan total ACC
+    pcm.total_acc_20dc = total_acc_20dc
+    pcm.total_acc_40hc = total_acc_40hc
+
+    # Persentase ACC terhadap total bongkaran (mirip pola percentage_pengajuan_*)
+    pcm.percentage_acc_20dc = ratio(total_acc_20dc, pcm.total_bongkaran_20dc)
+    pcm.percentage_acc_40hc = ratio(total_acc_40hc, pcm.total_bongkaran_40hc)
+
     db.session.commit()
 
-    return jsonify({"msg": "Acc Pengajuan berhasil diperbarui", "container_movement": {
-        "id": cm.id,
-        "voyage_id": cm.voyage_id,
-        "acc_pengajuan_empty_20dc": cm.acc_pengajuan_empty_20dc,
-        "acc_pengajuan_empty_40hc": cm.acc_pengajuan_empty_40hc,
-        "acc_pengajuan_full_20dc": cm.acc_pengajuan_full_20dc,
-        "acc_pengajuan_full_40hc": cm.acc_pengajuan_full_40hc,
-        "total_pengajuan_20dc": cm.total_pengajuan_20dc,
-        "total_pengajuan_40hc": cm.total_pengajuan_40hc,
-        "teus_pengajuan": cm.teus_pengajuan,
-        "updated_at": cm.updated_at.isoformat() if cm.updated_at else None
-    }}), 200
+    return jsonify({
+        "msg": "Acc Pengajuan & persentase ACC berhasil diperbarui",
+        "container_movement": {
+            "id": cm.id,
+            "voyage_id": cm.voyage_id,
+            "acc_pengajuan_empty_20dc": cm.acc_pengajuan_empty_20dc,
+            "acc_pengajuan_empty_40hc": cm.acc_pengajuan_empty_40hc,
+            "acc_pengajuan_full_20dc": cm.acc_pengajuan_full_20dc,
+            "acc_pengajuan_full_40hc": cm.acc_pengajuan_full_40hc,
+            "total_pengajuan_20dc": cm.total_pengajuan_20dc,
+            "total_pengajuan_40hc": cm.total_pengajuan_40hc,
+            "teus_pengajuan": cm.teus_pengajuan,
+            "updated_at": cm.updated_at.isoformat() if cm.updated_at else None
+        },
+        "percentage_container_movement": {
+            "cm_id": pcm.cm_id,
+            "pengajuan_acc_empty_20dc": pcm.pengajuan_acc_empty_20dc,
+            "pengajuan_acc_full_20dc": pcm.pengajuan_acc_full_20dc,
+            "pengajuan_acc_empty_40hc": pcm.pengajuan_acc_empty_40hc,
+            "pengajuan_acc_full_40hc": pcm.pengajuan_acc_full_40hc,
+            "total_acc_20dc": pcm.total_acc_20dc,
+            "total_acc_40hc": pcm.total_acc_40hc,
+            "percentage_acc_20dc": pcm.percentage_acc_20dc,
+            "percentage_acc_40hc": pcm.percentage_acc_40hc
+        }
+    }), 200
 
 @cm_bp.route('/realisasi_shipside', methods=['POST'])
 @jwt_required()
@@ -297,6 +437,55 @@ def create_realisasi_shipside():
     cm.teus_turun_cy = teus_turun_cy
     cm.percentage_vessel = percentage_vessel
 
+    # Update PercentageContainerMovement (TLSS & Turun CY & Realisasi)
+    pcm = PercentageContainerMovement.query.filter_by(cm_id=cm.id).first()
+    if not pcm:
+        pcm = PercentageContainerMovement(cm_id=cm.id)
+        pcm.total_bongkaran_20dc = (cm.bongkaran_empty_20dc or 0) + (cm.bongkaran_full_20dc or 0)
+        pcm.total_bongkaran_40hc = (cm.bongkaran_empty_40hc or 0) + (cm.bongkaran_full_40hc or 0)
+        db.session.add(pcm)
+
+    # Turun CY per kategori (ACC - realisasi)
+    turun_cy_empty_20dc = (cm.acc_pengajuan_empty_20dc or 0) - total_realisasi_empty_20dc
+    turun_cy_full_20dc = (cm.acc_pengajuan_full_20dc or 0) - total_realisasi_full_20dc
+    turun_cy_empty_40hc = (cm.acc_pengajuan_empty_40hc or 0) - total_realisasi_empty_40hc
+    turun_cy_full_40hc = (cm.acc_pengajuan_full_40hc or 0) - total_realisasi_full_40hc
+
+    # Total TLSS & Turun per size
+    total_tlss_20dc = total_realisasi_20dc
+    total_tlss_40hc = total_realisasi_40hc
+    total_turun_20dc = turun_cy_empty_20dc + turun_cy_full_20dc
+    total_turun_40hc = turun_cy_empty_40hc + turun_cy_full_40hc
+
+    def ratio(pengajuan, bongkaran):
+        if bongkaran and bongkaran > 0:
+            return pengajuan / bongkaran
+        return 0
+
+    # Rasio ACC -> TLSS (anggap TLSS = total realisasi per kategori)
+    pcm.acc_tlss_empty_20dc = ratio(total_realisasi_empty_20dc, cm.acc_pengajuan_empty_20dc)
+    pcm.acc_tlss_full_20dc  = ratio(total_realisasi_full_20dc, cm.acc_pengajuan_full_20dc)
+    pcm.acc_tlss_empty_40hc = ratio(total_realisasi_empty_40hc, cm.acc_pengajuan_empty_40hc)
+    pcm.acc_tlss_full_40hc  = ratio(total_realisasi_full_40hc, cm.acc_pengajuan_full_40hc)
+
+    # Rasio ACC -> Turun CY per kategori
+    pcm.acc_turun_cy_empty_20dc = ratio(turun_cy_empty_20dc, cm.acc_pengajuan_empty_20dc)
+    pcm.acc_turun_cy_full_20dc  = ratio(turun_cy_full_20dc, cm.acc_pengajuan_full_20dc)
+    pcm.acc_turun_cy_empty_40hc = ratio(turun_cy_empty_40hc, cm.acc_pengajuan_empty_40hc)
+    pcm.acc_turun_cy_full_40hc  = ratio(turun_cy_full_40hc, cm.acc_pengajuan_full_40hc)
+
+    # Simpan totals TLSS & Turun
+    pcm.total_tlss_20dc = total_tlss_20dc
+    pcm.total_tlss_40hc = total_tlss_40hc
+    pcm.total_turun_20dc = total_turun_20dc
+    pcm.total_turun_40hc = total_turun_40hc
+
+    # Persentase TLSS & Realisasi terhadap baseline bongkaran
+    pcm.percentage_tl_20dc = ratio(total_tlss_20dc, pcm.total_bongkaran_20dc)
+    pcm.percentage_tl_40hc = ratio(total_tlss_40hc, pcm.total_bongkaran_40hc)
+    pcm.percentage_realisasi_20dc = pcm.percentage_tl_20dc
+    pcm.percentage_realisasi_40hc = pcm.percentage_tl_40hc
+
     db.session.commit()
 
     return jsonify({
@@ -324,6 +513,25 @@ def create_realisasi_shipside():
             "teus_turun_cy": cm.teus_turun_cy,
             "percentage_vessel": cm.percentage_vessel,
             "updated_at": cm.updated_at.isoformat() if cm.updated_at else None
+        },
+        "percentage_container_movement": {
+            "cm_id": pcm.cm_id,
+            "acc_tlss_empty_20dc": pcm.acc_tlss_empty_20dc,
+            "acc_tlss_full_20dc": pcm.acc_tlss_full_20dc,
+            "acc_tlss_empty_40hc": pcm.acc_tlss_empty_40hc,
+            "acc_tlss_full_40hc": pcm.acc_tlss_full_40hc,
+            "acc_turun_cy_empty_20dc": pcm.acc_turun_cy_empty_20dc,
+            "acc_turun_cy_full_20dc": pcm.acc_turun_cy_full_20dc,
+            "acc_turun_cy_empty_40hc": pcm.acc_turun_cy_empty_40hc,
+            "acc_turun_cy_full_40hc": pcm.acc_turun_cy_full_40hc,
+            "total_tlss_20dc": pcm.total_tlss_20dc,
+            "total_tlss_40hc": pcm.total_tlss_40hc,
+            "total_turun_20dc": pcm.total_turun_20dc,
+            "total_turun_40hc": pcm.total_turun_40hc,
+            "percentage_tl_20dc": pcm.percentage_tl_20dc,
+            "percentage_tl_40hc": pcm.percentage_tl_40hc,
+            "percentage_realisasi_20dc": pcm.percentage_realisasi_20dc,
+            "percentage_realisasi_40hc": pcm.percentage_realisasi_40hc
         }
     }), 200
 
@@ -359,23 +567,25 @@ def get_summary_by_port():
     dan realisasi per lokasi sandar (port).
     """
     summary_data = db.session.query(
-        Voyage.berth_loc,
+        Port.id.label('port_id'),
+        Port.name.label('port_name'),
         func.sum(ContainerMovement.teus_pengajuan).label('total_pengajuan'),
-        # Di sini kita asumsikan acc_pengajuan sama dengan total_pengajuan untuk chart
         func.sum(ContainerMovement.teus_pengajuan).label('acc_pengajuan'),
         func.sum(ContainerMovement.teus_realisasi).label('total_realisasi')
-    ).join(ContainerMovement, Voyage.id == ContainerMovement.voyage_id)\
-     .group_by(Voyage.berth_loc)\
+    ).join(Voyage, Voyage.id == ContainerMovement.voyage_id)\
+     .join(Port, Voyage.port_id == Port.id)\
+     .group_by(Port.id, Port.name)\
      .all()
 
     result = [
         {
-            "port": data.berth_loc,
+            "port_id": data.port_id,
+            "port_name": data.port_name,
             "total_pengajuan": float(data.total_pengajuan or 0),
             "acc_pengajuan": float(data.acc_pengajuan or 0),
             "total_realisasi": float(data.total_realisasi or 0),
         }
-        for data in summary_data if data.berth_loc
+        for data in summary_data
     ]
     
     return jsonify(result), 200

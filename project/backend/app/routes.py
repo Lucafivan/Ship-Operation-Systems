@@ -1,7 +1,9 @@
 from . import db
 from .models import (
     Vessel,
-    Voyage
+    Voyage,
+    Port,
+    db
 )
 from flask import jsonify, request, Blueprint
 from flask_jwt_extended import jwt_required
@@ -45,7 +47,8 @@ def get_voyages():
             "vessel_id": voyage.vessel_id,
             "voyage_no": voyage.voyage_no,
             "voyage_yr": voyage.voyage_yr,
-            "berth_loc": voyage.berth_loc,
+            "port_id": voyage.port_id,
+            "port_name": voyage.port.name if voyage.port else None,
             "date_berth": voyage.date_berth.isoformat(),
             "created_at": voyage.created_at.isoformat()
         })
@@ -57,11 +60,21 @@ def create_voyage():
     data = request.get_json()
     vessel_id = data.get('vessel_id')
     voyage_yr = data.get('voyage_yr')
-    berth_loc = data.get('berth_loc')
+    port_id = data.get('port_id')
+    port_name = data.get('port_name') or data.get('berth_loc')
     date_berth = data.get('date_berth')
 
     if not all([vessel_id, voyage_yr, date_berth]):
         return jsonify({"msg": "Semua field diperlukan"}), 400
+
+    port = None
+    if port_id:
+        port = Port.query.filter_by(id=port_id).first()
+    elif port_name:
+        port = Port.query.filter(Port.name.ilike(port_name)).first()
+
+    if not port:
+        return jsonify({"msg": "Port tidak ditemukan (gunakan port_id atau port_name yang valid)"}), 400
 
     last_voyage = Voyage.query.filter_by(vessel_id=vessel_id, voyage_yr=voyage_yr).order_by(Voyage.voyage_no.desc()).first()
     if last_voyage:
@@ -77,7 +90,7 @@ def create_voyage():
         vessel_id=vessel_id,
         voyage_no=next_voyage_no,
         voyage_yr=voyage_yr,
-        berth_loc=berth_loc,
+        port_id=port.id,
         date_berth=date_berth
     )
     db.session.add(new_voyage)
@@ -88,7 +101,8 @@ def create_voyage():
         "vessel_id": new_voyage.vessel_id,
         "voyage_no": new_voyage.voyage_no,
         "voyage_yr": new_voyage.voyage_yr,
-        "berth_loc": new_voyage.berth_loc,
+        "port_id": new_voyage.port_id,
+        "port_name": port.name,
         "date_berth": new_voyage.date_berth.isoformat(),
         "created_at": new_voyage.created_at.isoformat()
     }}), 201
