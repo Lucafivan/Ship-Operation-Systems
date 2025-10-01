@@ -4,7 +4,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import toast from 'react-hot-toast';
 
 interface PortSummary {
-  port: string;
+  port_id: number;
+  port_name: string;
   total_pengajuan: number;
   acc_pengajuan: number;
   total_realisasi: number;
@@ -14,7 +15,7 @@ const CHART_COLORS = ['#03c0ff', '#ffc658'];
 
 const DashboardPage: React.FC = () => {
   const [summaryData, setSummaryData] = useState<PortSummary[]>([]);
-  const [selectedPort, setSelectedPort] = useState<string>('');
+  const [selectedPortId, setSelectedPortId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,7 +25,7 @@ const DashboardPage: React.FC = () => {
         const res = await apiClient.get<PortSummary[]>('/container_movements/summary-by-port');
         setSummaryData(res.data);
         if (res.data.length > 0) {
-          setSelectedPort(res.data[0].port);
+          setSelectedPortId(res.data[0].port_id);
         }
       } catch (err) {
         toast.error('Gagal memuat data ringkasan untuk dashboard.');
@@ -36,7 +37,8 @@ const DashboardPage: React.FC = () => {
   }, []);
 
   const getChartDataForSelectedPort = () => {
-    const portData = summaryData.find(d => d.port === selectedPort);
+    if (selectedPortId == null) return [];
+    const portData = summaryData.find(d => d.port_id === selectedPortId);
     if (!portData) return [];
     return [
       { name: 'Total Pengajuan', value: portData.total_pengajuan },
@@ -64,13 +66,13 @@ const DashboardPage: React.FC = () => {
             </label>
             <select
               id="port-select"
-              value={selectedPort}
-              onChange={(e) => setSelectedPort(e.target.value)}
+              value={selectedPortId ?? ''}
+              onChange={(e) => setSelectedPortId(Number(e.target.value))}
               className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-500 focus:ring-opacity-50"
             >
               {summaryData.map(item => (
-                <option key={item.port} value={item.port}>
-                  {item.port}
+                <option key={item.port_id} value={item.port_id}>
+                  {item.port_name}
                 </option>
               ))}
             </select>
@@ -78,7 +80,7 @@ const DashboardPage: React.FC = () => {
 
           <div className="bg-white p-6 rounded-lg shadow-lg" style={{ height: '500px' }}>
             <h2 className="text-xl font-semibold mb-6 text-center text-gray-700">
-              Ringkasan TEUs untuk Pelabuhan: <span className="text-green-700">{selectedPort}</span>
+              Ringkasan TEUs untuk Pelabuhan: <span className="text-green-700">{summaryData.find(p => p.port_id === selectedPortId)?.port_name || '-'}</span>
             </h2>
             <ResponsiveContainer width="100%" height="90%">
               <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
@@ -95,9 +97,9 @@ const DashboardPage: React.FC = () => {
                 />
                 <Legend />
                 <Bar dataKey="value" name="Jumlah TEUs" barSize={60}>
-                    {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                    ))}
+                  {chartData.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                  ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
