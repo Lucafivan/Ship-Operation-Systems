@@ -8,6 +8,10 @@ from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from dotenv import load_dotenv
 
+# === CLI Command untuk Seeder ===
+import click
+from flask.cli import with_appcontext
+
 # Memuat variabel lingkungan dari file .env
 load_dotenv()
 
@@ -49,30 +53,28 @@ def create_app():
         from .auth_routes import auth_bp
         from .container_routes import cm_bp
         from .port_routes import port_bp
-        # from .seeder import seed_data
-
-        # try:
-        #     from .weather_updater import start_background_updater
-        #     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-        #         start_background_updater(app)
-        # except Exception as e:
-        #     print(f"[WeatherUpdater] Failed to start background updater: {e}")
 
         @jwt.token_in_blocklist_loader
         def check_if_token_in_blocklist(jwt_header, jwt_payload):
             jti = jwt_payload["jti"]
             return jti in BLOCKLIST
 
+    # === CLI Command untuk Seeder ===
+    @click.command("seed")
+    @with_appcontext
+    def seed_command():
+        from seeder import run_seed
+        """Jalankan seeder untuk isi data awal dari CSV."""
+        run_seed()
+
+    # ini yang belum ada di kode kamu:
+    app.cli.add_command(seed_command)
+
+    # Blueprint
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(cm_bp, url_prefix='/container_movements')
     app.register_blueprint(port_bp, url_prefix='/ports')
-        # app.register_blueprint(user_bp, url_prefix='/users') 
-
-        # @app.cli.command("seed")
-        # def seed_command():
-        #     """Isi database dengan data dummy."""
-        #     with app.app_context():
-        #         seed_data()
 
     return app
+
