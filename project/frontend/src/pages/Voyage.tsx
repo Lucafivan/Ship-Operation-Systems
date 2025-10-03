@@ -14,8 +14,6 @@ interface Vessel {
 const VoyagePage: React.FC = () => {
   const navigate = useNavigate();
   const [vessels, setVessels] = useState<Vessel[]>([]);
-  
-  // 3. TAMBAHKAN STATE UNTUK MENGONTROL MODAL
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
@@ -50,7 +48,6 @@ const VoyagePage: React.FC = () => {
     }
   };
 
-  // 4. Definisikan header untuk tabel di dalam modal
   const vesselTableHeaders = [
     { key: 'id', label: 'ID' },
     { key: 'name', label: 'Nama Vessel' }
@@ -59,12 +56,9 @@ const VoyagePage: React.FC = () => {
   return (
     <div className="flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        
-        {/* 5. MODIFIKASI BAGIAN DAFTAR VESSEL */}
         <div className="bg-slate-100 p-4 rounded-lg mb-6 border border-slate-200">
           <div className="flex justify-between items-center mb-2">
             <h3 className="font-semibold text-gray-700">Daftar Vessel Tersedia:</h3>
-            {/* Tampilkan tombol hanya jika data lebih dari 5 */}
             {vessels.length > 5 && (
               <button 
                 onClick={() => setIsModalOpen(true)}
@@ -75,7 +69,7 @@ const VoyagePage: React.FC = () => {
             )}
           </div>
           {vessels.length > 0 ? (
-            // Tampilkan hanya 5 item pertama
+            // Show only first 5 vessels
             <ul className="list-disc list-inside text-sm text-gray-600">
               {vessels.slice(0, 5).map((vessel) => (
                 <li key={vessel.id}>
@@ -97,7 +91,6 @@ const VoyagePage: React.FC = () => {
         
       </div>
 
-      {/* 6. TAMBAHKAN KOMPONEN MODAL DI SINI */}
       <Modal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 

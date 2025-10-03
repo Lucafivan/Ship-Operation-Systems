@@ -1,12 +1,9 @@
-// src/pages/AccPengajuanPage.tsx
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../api/axios";
 import DynamicForm from "../components/form/dynamicform";
 import toast from "react-hot-toast";
 
-// Definisikan tipe data untuk referensi
 interface ContainerMovementReference {
   id: number;
   voyage_id: number;
@@ -17,7 +14,6 @@ const AccPengajuanPage: React.FC = () => {
   const [movements, setMovements] = useState<ContainerMovementReference[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // 1. Ambil data container movements yang ada untuk referensi
   useEffect(() => {
     const fetchMovements = async () => {
       try {
@@ -34,7 +30,6 @@ const AccPengajuanPage: React.FC = () => {
     fetchMovements();
   }, []);
 
-  // 2. Definisikan field untuk DynamicForm
   const fields = [
     { name: "id", label: "ID Container Movement", type: "number", placeholder: "Pilih ID dari daftar di atas" },
     { name: "acc_pengajuan_empty_20dc", label: "ACC Pengajuan Empty 20DC", type: "number", placeholder: "Jumlah" },
@@ -43,7 +38,6 @@ const AccPengajuanPage: React.FC = () => {
     { name: "acc_pengajuan_full_40hc", label: "ACC Pengajuan Full 40HC", type: "number", placeholder: "Jumlah" },
   ];
 
-  // 3. Fungsi untuk menangani submit form
   const handleSubmit = async (data: Record<string, any>) => {
     if (!data.id) {
         toast.error("ID Container Movement wajib diisi!");

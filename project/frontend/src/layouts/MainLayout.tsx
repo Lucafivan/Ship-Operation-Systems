@@ -2,9 +2,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/frame/sidebar';
 import Navbar from '../components/frame/navbar';
 
-
 function MainLayout() {
-
   return (
     <> {/* Gunakan Fragment agar bisa menampung modal di luar div utama */}
       <div className="flex flex-col h-screen">

@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
-// Jalur impor diperbaiki
 import apiClient from "../api/axios";
 import DynamicForm from "../components/form/dynamicform";
 import toast from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
 import Modal from "../components/modals";
 import Table from "../components/tables/tables";
 import { Button } from "../components/ui/Button";
@@ -14,7 +12,7 @@ interface Vessel {
 }
 
 const VesselPage: React.FC = () => {
-  const navigate = useNavigate();
+
   const [vessels, setVessels] = useState<Vessel[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -56,16 +54,14 @@ const VesselPage: React.FC = () => {
     <>
       <div className="h-full flex items-center justify-center">
         <div className="w-full max-w-md">
-          {/* 1. Ubah <DynamicForm /> menjadi <DynamicForm>...</DynamicForm> */}
           <DynamicForm 
             title="Form Tambah Vessel Baru" 
             fields={fields} 
             onSubmit={handleSubmit} 
             buttonText="Simpan" 
           >
-            {/* 2. Sisipkan tombol secondary di sini. Ini akan menjadi 'children' */}
             <Button
-              type="button" // PENTING: agar tidak men-submit form
+              type="button"
               variant="secondary"
               onClick={() => setIsModalOpen(true)}
             >

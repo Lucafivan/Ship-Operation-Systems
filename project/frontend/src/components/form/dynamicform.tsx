@@ -14,7 +14,6 @@ interface DynamicFormProps {
   fields: Field[];
   onSubmit: (data: Record<string, any>) => Promise<void>;
   buttonText?: string;
-  // 1. Tambahkan 'children' ke dalam props agar bisa menerima komponen lain
   children?: React.ReactNode;
 }
 
@@ -98,10 +97,7 @@ const DynamicForm: React.FC<DynamicFormProps> = ({
         </div>
       ))}
 
-      {/* 2. Modifikasi area tombol agar bisa menampung lebih dari satu */}
       <div className="pt-4 flex flex-col gap-3">
-        {/* 3. Tampilkan 'children' (tombol secondary kita) di sini */}
-        
         <Button variant="primary" type="submit">
           {buttonText}
         </Button>

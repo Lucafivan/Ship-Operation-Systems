@@ -23,30 +23,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
 
-  // Cek token & fetch user saat app pertama kali load
-  /*useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (token) {
-      setIsAuthenticated(true);
-      axios
-        .get("http://localhost:5000/users/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        .then((res) => setUser(res.data.user))
-        .catch(() => {
-          setIsAuthenticated(false);
-          setUser(null);
-        });
-    }
-  }, []);
-
-  */
-
   const login = (accessToken: string, refreshToken: string) => {
     setIsAuthenticated(true);
     localStorage.setItem("access_token", accessToken);
     localStorage.setItem("refresh_token", refreshToken);
-    // biasanya setelah login kita fetch user juga
   };
 
   const logout = () => {
@@ -56,7 +36,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem("refresh_token");
   };
 
-  // Fungsi untuk refresh access token
+  // Function to refresh access token
   const refreshAccessToken = async () => {
     const refreshToken = localStorage.getItem("refresh_token");
     if (!refreshToken) return false;
@@ -74,7 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Axios interceptor untuk auto-refresh token jika expired
+  // Axios interceptor to handle 401 responses
   useEffect(() => {
     const api = axios;
     const interceptor = api.interceptors.response.use(
@@ -95,14 +75,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => api.interceptors.response.eject(interceptor);
   }, []);
 
-  // Cek token saat app load
+  // Check token validity on app load
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (token) {
       try {
         const { exp } = jwtDecode<{ exp: number }>(token);
         if (Date.now() >= exp * 1000) {
-          // expired, coba refresh
+          // Token expired
           refreshAccessToken();
         } else {
           setIsAuthenticated(true);
