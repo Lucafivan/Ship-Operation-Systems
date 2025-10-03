@@ -22,7 +22,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       <input
         className={`${baseStyle} ${hasError ? errorStyle : defaultStyle} ${className}`}
         ref={ref} // Teruskan ref ke elemen input
-        {...props} // Teruskan sisa props (type, placeholder, dll.)
+        {...props}
       />
     );
   }

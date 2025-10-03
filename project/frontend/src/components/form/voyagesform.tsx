@@ -2,8 +2,6 @@ import React, { useState, useEffect } from "react";
 import apiClient from "../../api/axios";
 import DynamicForm from "./dynamicform";
 import toast from "react-hot-toast";
-
-// 1. Impor komponen Modal dan Table
 import Modal from "../modals";
 import Table from "../tables/tables";
 
@@ -74,7 +72,6 @@ const VoyageForm: React.FC<VoyageFormProps> = ({ onSuccess }) => {
     }
   };
 
-  // 3. Definisikan header untuk tabel di dalam modal
   const vesselTableHeaders = [
     { key: 'id', label: 'ID' },
     { key: 'name', label: 'Nama Vessel' }
@@ -92,7 +89,6 @@ const VoyageForm: React.FC<VoyageFormProps> = ({ onSuccess }) => {
         />
       </div>
 
-      {/* 5. Tambahkan komponen Modal di sini */}
       <Modal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 

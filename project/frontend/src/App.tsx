@@ -18,7 +18,6 @@ import DashboardPage from './pages/Dashboard';
 
 function App() {
   return (
-    // Bungkus semua rute dengan UIProvider
     <>
       <Toaster position="top-center" reverseOrder={false} />
 
