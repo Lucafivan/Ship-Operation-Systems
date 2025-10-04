@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
-from .models import db, Port 
+from .models import CostRate, db, Port 
 
 port_bp = Blueprint('port_bp', __name__)
 
@@ -22,6 +22,10 @@ def create_port():
 
     new_port = Port(name=name, code=code)
     db.session.add(new_port)
+    db.session.commit()
+
+    cr = CostRate(port_id=new_port.id)
+    db.session.add(cr)
     db.session.commit()
 
     return jsonify({

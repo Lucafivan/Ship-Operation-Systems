@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required
 from sqlalchemy import func
 from .models import db, ContainerMovement, Voyage, Port
 
-percentage_bp = Blueprint("percentage_bp", __name__, url_prefix="/percentages")
+percentage_bp = Blueprint("percentage_bp", __name__)
 
 def _f(x): return float(x or 0)
 

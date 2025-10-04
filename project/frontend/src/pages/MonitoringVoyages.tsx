@@ -57,6 +57,8 @@ const MonitoringVoyages: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [data, setData] = useState<ContainerMovement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCost, setShowCost] = useState(false);
+  const [estimations, setEstimations] = useState<Record<number, any>>({});
   // Konfigurasi tampilan scroll body tabel
   const MAX_VISIBLE_ROWS = 5; // tampilkan maksimal 5 baris sebelum scroll
   const BODY_ROW_APPROX_PX = 30; // tinggi estimasi per baris (padding + font)
@@ -205,6 +207,15 @@ const MonitoringVoyages: React.FC = () => {
     fetchData();
   }, []);
 
+  const fetchEstimation = async (voyageId: number) => {
+    try {
+      const res = await apiClient.get(`/cost/cost-estimation/${voyageId}`);
+      setEstimations(prev => ({ ...prev, [voyageId]: res.data }));
+    } catch (e) {
+      console.error('Gagal mengambil cost estimation', e);
+    }
+  };
+
   const handleSuccess = () => {
     setIsModalOpen(false);
     fetchData();
@@ -275,11 +286,11 @@ const MonitoringVoyages: React.FC = () => {
           </div>
           <div className="flex justify-start px-1">
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => setShowCost((s) => !s)}
+              className="text-sm rounded-md border border-slate-300 bg-white px-3 py-1 shadow hover:bg-slate-100"
               type="button"
-              className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm shadow hover:bg-slate-200"
             >
-              Tambah Data
+              {showCost ? 'Tampilkan Container Movement' : 'Tampilkan Cost Estimation'}
             </button>
           </div>
           <Modal
@@ -294,17 +305,33 @@ const MonitoringVoyages: React.FC = () => {
       {/* Restyled table section */}
       <section className="bg-white backdrop-blur rounded-xl p-4 shadow mt-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-medium text-slate-800">Daftar Container Movement</h2>
-          <button
-            onClick={fetchData}
-            className="text-sm text-blue-600 hover:underline disabled:opacity-50"
-            disabled={loading}
-            type="button"
-          >
-            Refresh
-          </button>
+          <h2 className="font-medium text-slate-800">
+            {showCost ? 'Cost Estimation per Voyage' : 'Daftar Container Movement'}
+          </h2>
+          <div className="flex items-center gap-2">
+            {!showCost && (
+              <>
+                <button
+                  onClick={fetchData}
+                  className="text-sm text-blue-600 hover:underline disabled:opacity-50"
+                  disabled={loading}
+                  type="button"
+                >
+                  Refresh
+                </button>
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  type="button"
+                  className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm hover:bg-slate-200"
+                >
+                  Tambah Data
+                </button>
+              </>
+            )}
+          </div>
         </div>
         <div className="overflow-x-auto">
+          {!showCost && (
           <div
             className={`overflow-y-auto ${sortedData.length > MAX_VISIBLE_ROWS ? 'shadow-inner' : ''} custom-scroll`}
             style={{ maxHeight: sortedData.length > MAX_VISIBLE_ROWS ? maxBodyHeight : 'auto' }}
@@ -494,6 +521,43 @@ const MonitoringVoyages: React.FC = () => {
               </tbody>
             </table>
           </div>
+          )}
+
+          {showCost && (
+            <div className="overflow-y-auto custom-scroll">
+              <table className="min-w-[900px] w-full text-xs md:text-sm border-collapse">
+                <thead className="sticky top-0 bg-gray-100 z-10 text-slate-700">
+                  <tr>
+                    <th className="p-2 border">Voyage</th>
+                    <th className="p-2 border">Port</th>
+                    <th className="p-2 border">Grand Total</th>
+                    <th className="p-2 border">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedData.map((row) => {
+                    const e = estimations[row.voyage_id];
+                    return (
+                      <tr key={`est-${row.id}`} className="hover:bg-gray-50 border-b last:border-b-0">
+                        <td className="p-2">{row.vessel_name} / {row.voyage_number}-{row.voyage_year}</td>
+                        <td className="p-2">{row.port_name}</td>
+                        <td className="p-2">{e ? `${e.currency} ${e.grand_total.toLocaleString()}` : '-'}</td>
+                        <td className="p-2">
+                          <button
+                            className="text-emerald-700 hover:underline text-[11px]"
+                            onClick={() => fetchEstimation(row.voyage_id)}
+                            type="button"
+                          >
+                            {e ? 'Refresh' : 'Load'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </section>
       <EditContainerMovementModal
