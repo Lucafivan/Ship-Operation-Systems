@@ -173,3 +173,48 @@ class PercentageContainerMovement(db.Model):
 
     def __repr__(self):
         return f'<PercentageContainerMovement for CM ID: {self.cm_id}>'
+
+class CostRate(db.Model):
+    __tablename__ = 'cost_rates'
+    id = db.Column(db.Integer, primary_key=True)
+    port_id = db.Column(db.Integer, db.ForeignKey('ports.id'), nullable=False)
+    tdk_tl_20mt = db.Column(db.Numeric(12, 2), default=0)
+    tdk_tl_40mt = db.Column(db.Numeric(12, 2), default=0)
+    tdk_tl_20fl = db.Column(db.Numeric(12, 2), default=0)
+    tdk_tl_40fl = db.Column(db.Numeric(12, 2), default=0)
+    tl_20mt = db.Column(db.Numeric(12, 2), default=0)
+    tl_40mt = db.Column(db.Numeric(12, 2), default=0)
+    tl_20fl = db.Column(db.Numeric(12, 2), default=0)
+    tl_40fl = db.Column(db.Numeric(12, 2), default=0)
+    shipside_yes_20mt = db.Column(db.Numeric(12, 2), default=0)
+    shipside_yes_40mt = db.Column(db.Numeric(12, 2), default=0)
+    shipside_yes_20fl = db.Column(db.Numeric(12, 2), default=0)
+    shipside_yes_40fl = db.Column(db.Numeric(12, 2), default=0)
+    shipside_no_20mt = db.Column(db.Numeric(12, 2), default=0)
+    shipside_no_40mt = db.Column(db.Numeric(12, 2), default=0)
+    shipside_no_20fl = db.Column(db.Numeric(12, 2), default=0)
+    shipside_no_40fl = db.Column(db.Numeric(12, 2), default=0)
+    turun_cy_20mt = db.Column(db.Numeric(12, 2), default=0)
+    turun_cy_40mt = db.Column(db.Numeric(12, 2), default=0)
+    turun_cy_20fl = db.Column(db.Numeric(12, 2), default=0)
+    turun_cy_40fl = db.Column(db.Numeric(12, 2), default=0)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def __repr__(self):
+        return f'<CostRate port={self.port_id}>'
+
+
+class VoyageCostEstimation(db.Model):
+    __tablename__ = 'voyage_cost_estimations'
+    id = db.Column(db.Integer, primary_key=True)
+    voyage_id = db.Column(db.Integer, db.ForeignKey('voyages.id'), nullable=False)
+    estimation_cost1 = db.Column(db.Numeric(14, 2), nullable=True)
+    estimation_cost2 = db.Column(db.Numeric(14, 2), nullable=True)
+    final_cost = db.Column(db.Numeric(14, 2), nullable=True)
+    computed_at = db.Column(db.DateTime, default=datetime.now)
+
+    voyage = db.relationship('Voyage', backref=db.backref('cost_estimations', lazy=True, cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<VoyageCostEstimation voyage={self.voyage_id} final={self.final_cost}>'

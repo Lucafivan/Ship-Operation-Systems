@@ -54,6 +54,7 @@ def create_app():
         from .container_routes import cm_bp
         from .port_routes import port_bp
         from .percentage_routes import percentage_bp
+        from .cost_routes import cost_bp
 
         @jwt.token_in_blocklist_loader
         def check_if_token_in_blocklist(jwt_header, jwt_payload):
@@ -75,6 +76,7 @@ def create_app():
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(cm_bp, url_prefix='/container_movements')
     app.register_blueprint(port_bp, url_prefix='/ports')
-    app.register_blueprint(percentage_bp)  # Tanpa url_prefix di sini
+    app.register_blueprint(percentage_bp, url_prefix='/percentages')
+    app.register_blueprint(cost_bp, url_prefix='/cost')
 
     return app

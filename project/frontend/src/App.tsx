@@ -15,6 +15,7 @@ import Realisasi from './pages/Realisasi';
 import Shipside from './pages/Shipside';
 import Port from './pages/Port';
 import DashboardPage from './pages/Dashboard';
+import CostMapping from './pages/CostMapping';
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
             <Route path="/shipside" element={<Shipside/>}/>
             <Route path="/port" element={<Port/>}/>
             <Route path="/monitoring" element={<MonitoringVoyages />} />
+            <Route path="/cost-mapping" element={<CostMapping />} />
           </Route>
         </Route>
 
