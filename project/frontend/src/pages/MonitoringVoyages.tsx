@@ -80,10 +80,13 @@ const MonitoringVoyages: React.FC = () => {
   // per-page dropdown state
   const [perPage, setPerPage] = useState<number>(10);
 
-  const MAX_VISIBLE_ROWS = 10;
+  const MAX_VISIBLE_ROWS = 8;
   const BODY_ROW_APPROX_PX = 30;
   const HEADER_STACK_PX = 180;
   const maxBodyHeight = `calc(${HEADER_STACK_PX}px + ${BODY_ROW_APPROX_PX * MAX_VISIBLE_ROWS}px)`;
+  // Cost table header is single-row, so smaller stack height
+  const COST_HEADER_PX = 48;
+  const maxCostHeight = `calc(${COST_HEADER_PX}px + ${BODY_ROW_APPROX_PX * MAX_VISIBLE_ROWS}px)`;
 
   type DatePreset = 'all' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom';
   const [datePreset, setDatePreset] = useState<DatePreset>('all');
@@ -459,7 +462,7 @@ const MonitoringVoyages: React.FC = () => {
                   type="text"
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
-                  placeholder="misal V09 atau Sukses"
+                  placeholder="Kata Kunci"
                   className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm shadow-sm focus:outline-none"
                 />
               </div>
@@ -699,7 +702,10 @@ const MonitoringVoyages: React.FC = () => {
           )}
 
           {showCost && (
-            <div className="overflow-y-auto custom-scroll">
+            <div
+              className={`overflow-y-auto ${finalData.length > MAX_VISIBLE_ROWS ? 'shadow-inner' : ''} custom-scroll`}
+              style={{ maxHeight: finalData.length > MAX_VISIBLE_ROWS ? maxCostHeight : 'auto' }}
+            >
               <table className="min-w-[1100px] w-full text-xs md:text-sm border-collapse">
                 <thead className="sticky top-0 z-10">
                   <tr className="text-white">
