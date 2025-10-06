@@ -1,11 +1,11 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
-from .models import db, CostRate
+from .models import db, CostRate, VoyageCostEstimation
 
 cost_bp = Blueprint('cost', __name__)
 
 @cost_bp.route('/cost-rates', methods=['GET'])
-# @jwt_required()
+@jwt_required()
 def list_cost_rates():
     port_id = request.args.get('port_id', type=int)
     q = CostRate.query
@@ -75,4 +75,31 @@ def delete_cost_rate(rate_id):
     db.session.delete(rate)
     db.session.commit()
     return jsonify({'msg': 'Cost rate dihapus'})
+
+
+@cost_bp.route('/cost-estimation/<int:voyage_id>', methods=['GET'])
+@jwt_required()
+def get_voyage_cost_estimation(voyage_id: int):
+    """
+    Get saved estimation values for a voyage from voyage_cost_estimations table.
+    Returns nulls if no record exists yet.
+    """
+    rec = (VoyageCostEstimation.query
+           .filter_by(voyage_id=voyage_id)
+           .order_by(VoyageCostEstimation.id.desc())
+           .first())
+
+    def to_float(val):
+        try:
+            return float(val) if val is not None else None
+        except Exception:
+            return None
+
+    return jsonify({
+        'voyage_id': voyage_id,
+        'estimation_cost1': to_float(rec.estimation_cost1) if rec else None,
+        'estimation_cost2': to_float(rec.estimation_cost2) if rec else None,
+        'final_cost': to_float(rec.final_cost) if rec else None,
+        'computed_at': rec.computed_at.isoformat() if rec and rec.computed_at else None
+    })
 
