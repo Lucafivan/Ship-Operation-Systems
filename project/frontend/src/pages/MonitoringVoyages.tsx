@@ -62,7 +62,14 @@ const MonitoringVoyages: React.FC = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [totalRecords, setTotalRecords] = useState(0);
   const [showCost, setShowCost] = useState(false);
-  const [estimations, setEstimations] = useState<Record<number, any>>({});
+
+  interface VoyageEstimation {
+    estimation_cost1: number | null;
+    estimation_cost2: number | null;
+    final_cost: number | null;
+    computed_at?: string | null;
+  }
+  const [estimations, setEstimations] = useState<Record<number, VoyageEstimation>>({});
 
   // Global search states 
   const [useAllPagesForSearch] = useState(false);
@@ -332,10 +339,30 @@ const MonitoringVoyages: React.FC = () => {
     return () => clearTimeout(t);
   }, [searchText, searchKey, useAllPagesForSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Prefetch estimations when switching to cost view
+  useEffect(() => {
+    if (showCost) {
+      // load estimations for currently filtered rows (limit to first 15 to avoid bursts)
+      const ids = filteredData.slice(0, 15).map(r => r.voyage_id);
+      ids.forEach((id) => {
+        if (!estimations[id]) {
+          fetchEstimation(id);
+        }
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCost]);
+
   const fetchEstimation = async (voyageId: number) => {
     try {
       const res = await apiClient.get(`/cost/cost-estimation/${voyageId}`);
-      setEstimations(prev => ({ ...prev, [voyageId]: res.data }));
+      const payload = res.data as VoyageEstimation | undefined;
+      setEstimations((prev) => ({ ...prev, [voyageId]: payload ?? {
+        estimation_cost1: null,
+        estimation_cost2: null,
+        final_cost: null,
+        computed_at: null,
+      } }));
     } catch (e) {
       console.error('Gagal mengambil cost estimation', e);
     }
@@ -417,6 +444,15 @@ const MonitoringVoyages: React.FC = () => {
           <div className="flex items-end gap-3 px-1">
             {/* Search controls */}
             <div className="flex flex-col md:flex-row items-end gap-2">
+              {searchText && (
+                <button
+                  onClick={() => setSearchText('')}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm shadow hover:bg-slate-200"
+                  type="button"
+                >
+                  Clear
+                </button>
+              )}
               <div className="flex flex-col">
                 <label className="text-xs text-slate-600">Cari</label>
                 <input
@@ -424,7 +460,7 @@ const MonitoringVoyages: React.FC = () => {
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
                   placeholder="misal V09 atau Sukses"
-                  className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm shadow-sm focus:outline-none"
                 />
               </div>
 
@@ -452,16 +488,6 @@ const MonitoringVoyages: React.FC = () => {
                 <span className="text-xs text-slate-500">
                   {loadingAll ? 'Mengambil semua halaman…' : (allLoaded ? `Data terambil: ${allData.length} baris` : 'Siap mengambil semua halaman')}
                 </span>
-              )}
-
-              {searchText && (
-                <button
-                  onClick={() => setSearchText('')}
-                  className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm shadow hover:bg-slate-200"
-                  type="button"
-                >
-                  Clear
-                </button>
               )}
             </div>
 
@@ -674,32 +700,43 @@ const MonitoringVoyages: React.FC = () => {
 
           {showCost && (
             <div className="overflow-y-auto custom-scroll">
-              <table className="min-w-[900px] w-full text-xs md:text-sm border-collapse">
-                <thead className="sticky top-0 bg-gray-100 z-10 text-slate-700">
-                  <tr>
-                    <th className="p-2 border">Voyage</th>
-                    <th className="p-2 border">Port</th>
-                    <th className="p-2 border">Grand Total</th>
-                    <th className="p-2 border">Action</th>
+              <table className="min-w-[1100px] w-full text-xs md:text-sm border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr className="text-white">
+                    <th className="p-2 font-medium border border-white bg-emerald-600 text-white">Voyage</th>
+                    <th className="p-2 font-medium border border-white bg-emerald-600 text-white">Berth Location</th>
+                    <th className="p-2 font-medium border border-white bg-emerald-600 text-white">
+                      <div className="flex flex-col items-start">
+                        <span>Estimasi Cost 1</span>
+                        <span className="text-[10px] opacity-90">(Diajukan + Tidak Diajukan)</span>
+                      </div>
+                    </th>
+                    <th className="p-2 font-medium border border-white bg-emerald-600 text-white">
+                      <div className="flex flex-col items-start">
+                        <span>Estimasi Cost 2</span>
+                        <span className="text-[10px] opacity-90">(ACC Pengajuan + Tidak TL)</span>
+                      </div>
+                    </th>
+                    <th className="p-2 font-medium border border-white bg-emerald-600 text-white">
+                      <div className="flex flex-col items-start">
+                        <span>Final Cost</span>
+                        <span className="text-[10px] opacity-90">(Tidak TL + Realisasi + Shipside + Turun CY)</span>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {finalData.map((row) => {
                     const e = estimations[row.voyage_id];
+                    const fmt = (val?: number | null) =>
+                      val == null ? '-' : val.toLocaleString('id-ID');
                     return (
                       <tr key={`est-${row.id ?? row.voyage_id}`} className="hover:bg-gray-50 border-b last:border-b-0">
-                        <td className="p-2">{row.vessel_name} / {row.voyage_number}-{row.voyage_year}</td>
-                        <td className="p-2">{row.port_name}</td>
-                        <td className="p-2">{e ? `${e.currency} ${e.grand_total.toLocaleString()}` : '-'}</td>
-                        <td className="p-2">
-                          <button
-                            className="text-emerald-700 hover:underline text-[11px]"
-                            onClick={() => fetchEstimation(row.voyage_id)}
-                            type="button"
-                          >
-                            {e ? 'Refresh' : 'Load'}
-                          </button>
-                        </td>
+                        <td className="p-2 align-middle">{row.vessel_name} / {row.voyage_number}-{row.voyage_year}</td>
+                        <td className="p-2 align-middle">{row.port_name}</td>
+                        <td className="p-2 align-middle">{e?.estimation_cost1 == null ? '-' : `Rp${fmt(e?.estimation_cost1)}`}</td>
+                        <td className="p-2 align-middle">{e?.estimation_cost2 == null ? '-' : `Rp${fmt(e?.estimation_cost2)}`}</td>
+                        <td className="p-2 align-middle">{e?.final_cost == null ? '-' : `Rp${fmt(e?.final_cost)}`}</td>
                       </tr>
                     );
                   })}

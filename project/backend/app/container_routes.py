@@ -1,11 +1,165 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
-from .models import db, ContainerMovement, Voyage, Port, PercentageContainerMovement, Vessel
+from .models import db, ContainerMovement, Voyage, Port, PercentageContainerMovement, CostRate, VoyageCostEstimation, Vessel
+from datetime import datetime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_, cast, String
 
 cm_bp = Blueprint('container_movements', __name__)
+
+
+def _safe_int(x):
+    try:
+        return int(x or 0)
+    except Exception:
+        return 0
+
+
+def _get_rate(rates: CostRate | None, prefix: str, suffix: str) -> float:
+    # prefix: 'tl' | 'tdk_tl' | 'shipside_yes' | 'shipside_no' | 'turun_cy'
+    # suffix: '20mt' | '40mt' | '20fl' | '40fl'
+    if not rates:
+        return 0.0
+    key = f"{prefix}_{suffix}"
+    val = getattr(rates, key, 0) if hasattr(rates, key) else 0
+    try:
+        return float(val or 0)
+    except Exception:
+        return 0.0
+
+
+def _compute_and_save_voyage_cost(cm: ContainerMovement):
+    """Compute Estimasi Cost 1/2 and Final Cost using CostRate per voyage port and persist."""
+    if not cm or not cm.voyage_id:
+        return
+
+    voyage = Voyage.query.get(cm.voyage_id)
+    if not voyage:
+        return
+
+    # Fetch rates for the voyage port (one row per port expected)
+    rates = CostRate.query.filter_by(port_id=voyage.port_id).first()
+
+    # Build category map for 4 combos: (empty/full) x (20dc/40hc)
+    categories = [
+        {
+            'name': 'empty_20dc',
+            'suffix': '20mt',
+            'b': _safe_int(cm.bongkaran_empty_20dc),
+            'p': _safe_int(cm.pengajuan_empty_20dc),
+            'acc': _safe_int(cm.acc_pengajuan_empty_20dc),
+            'real': _safe_int(cm.realisasi_mxd_20dc),
+            'ship_yes': _safe_int(cm.shipside_yes_mxd_20dc),
+            'ship_no': _safe_int(cm.shipside_no_mxd_20dc),
+        },
+        {
+            'name': 'empty_40hc',
+            'suffix': '40mt',
+            'b': _safe_int(cm.bongkaran_empty_40hc),
+            'p': _safe_int(cm.pengajuan_empty_40hc),
+            'acc': _safe_int(cm.acc_pengajuan_empty_40hc),
+            'real': _safe_int(cm.realisasi_mxd_40hc),
+            'ship_yes': _safe_int(cm.shipside_yes_mxd_40hc),
+            'ship_no': _safe_int(cm.shipside_no_mxd_40hc),
+        },
+        {
+            'name': 'full_20dc',
+            'suffix': '20fl',
+            'b': _safe_int(cm.bongkaran_full_20dc),
+            'p': _safe_int(cm.pengajuan_full_20dc),
+            'acc': _safe_int(cm.acc_pengajuan_full_20dc),
+            'real': _safe_int(cm.realisasi_fxd_20dc),
+            'ship_yes': _safe_int(cm.shipside_yes_fxd_20dc),
+            'ship_no': _safe_int(cm.shipside_no_fxd_20dc),
+        },
+        {
+            'name': 'full_40hc',
+            'suffix': '40fl',
+            'b': _safe_int(cm.bongkaran_full_40hc),
+            'p': _safe_int(cm.pengajuan_full_40hc),
+            'acc': _safe_int(cm.acc_pengajuan_full_40hc),
+            'real': _safe_int(cm.realisasi_fxd_40hc),
+            'ship_yes': _safe_int(cm.shipside_yes_fxd_40hc),
+            'ship_no': _safe_int(cm.shipside_no_fxd_40hc),
+        },
+    ]
+
+    est1_total = 0.0
+    est2_total = 0.0
+    final_total = 0.0
+
+    # Detect data readiness for each estimation
+    has_pengajuan = any(
+        getattr(cm, f, None) is not None for f in (
+            'pengajuan_empty_20dc','pengajuan_empty_40hc','pengajuan_full_20dc','pengajuan_full_40hc'
+        )
+    )
+    has_acc = any(
+        getattr(cm, f, None) is not None for f in (
+            'acc_pengajuan_empty_20dc','acc_pengajuan_empty_40hc','acc_pengajuan_full_20dc','acc_pengajuan_full_40hc'
+        )
+    )
+    has_real_or_shipside = any(
+        getattr(cm, f, None) is not None for f in (
+            'realisasi_mxd_20dc','realisasi_mxd_40hc','realisasi_fxd_20dc','realisasi_fxd_40hc',
+            'shipside_yes_mxd_20dc','shipside_yes_mxd_40hc','shipside_yes_fxd_20dc','shipside_yes_fxd_40hc',
+            'shipside_no_mxd_20dc','shipside_no_mxd_40hc','shipside_no_fxd_20dc','shipside_no_fxd_40hc'
+        )
+    )
+
+    for cat in categories:
+        suffix = cat['suffix']
+        b = max(0, cat['b'])
+        p = max(0, cat['p'])
+        acc = max(0, cat['acc'])
+        real_only = max(0, cat['real'])  # Realisasi (tidak termasuk shipside)
+        ship_yes = max(0, cat['ship_yes'])
+        ship_no = max(0, cat['ship_no'])
+
+        not_submitted = max(0, b - p)
+        not_tl = max(0, b - acc)  # dianggap: yang tidak diterima TL
+
+        # Total realisasi per kategori (untuk hitung turun cy)
+        total_real_cat = real_only + ship_yes + ship_no
+        turun_cy_cat = max(0, acc - total_real_cat)
+
+        tl_rate = _get_rate(rates, 'tl', suffix)
+        tdk_tl_rate = _get_rate(rates, 'tdk_tl', suffix)
+        ship_yes_rate = _get_rate(rates, 'shipside_yes', suffix)
+        ship_no_rate = _get_rate(rates, 'shipside_no', suffix)
+        turun_cy_rate = _get_rate(rates, 'turun_cy', suffix)
+
+        # Estimasi 1: Diajukan + Tidak Diajukan
+        if has_pengajuan:
+            est1_total += p * tl_rate + not_submitted * tdk_tl_rate
+
+        # Estimasi 2: ACC Pengajuan + Tidak TL
+        if has_acc:
+            est2_total += acc * tl_rate + not_tl * tdk_tl_rate
+
+        # Final: Tidak TL + Realisasi + Shipside + Turun CY
+        if has_real_or_shipside:
+            final_total += (
+                not_tl * tdk_tl_rate
+                + real_only * tl_rate
+                + ship_yes * ship_yes_rate
+                + ship_no * ship_no_rate
+                + turun_cy_cat * turun_cy_rate
+            )
+
+    # Upsert to VoyageCostEstimation
+    vce = VoyageCostEstimation.query.filter_by(voyage_id=cm.voyage_id).first()
+    if not vce:
+        vce = VoyageCostEstimation(voyage_id=cm.voyage_id)
+        db.session.add(vce)
+    vce.estimation_cost1 = est1_total if has_pengajuan else None
+    vce.estimation_cost2 = est2_total if has_acc else None
+    vce.final_cost = final_total if has_real_or_shipside else None
+    vce.computed_at = datetime.now()
+
+    # No separate commit here; caller will commit
+    return
 
 @cm_bp.route('/', methods=['GET'])
 @jwt_required()
@@ -174,6 +328,8 @@ def create_bongkaran():
         percentage_pengajuan_40hc=0
     )
     db.session.add(pcm)
+    # Compute and save costs
+    _compute_and_save_voyage_cost(new_cm)
     db.session.commit()
 
     return jsonify({
@@ -265,6 +421,8 @@ def create_pengajuan():
     if created_new_pcm:
         db.session.add(pcm)
 
+    # Compute and save costs
+    _compute_and_save_voyage_cost(cm)
     db.session.commit()
 
     return jsonify({
@@ -380,6 +538,8 @@ def create_acc_pengajuan():
     pcm.percentage_acc_20dc = ratio(total_acc_20dc, pcm.total_bongkaran_20dc)
     pcm.percentage_acc_40hc = ratio(total_acc_40hc, pcm.total_bongkaran_40hc)
 
+    # Compute and save costs
+    _compute_and_save_voyage_cost(cm)
     db.session.commit()
 
     return jsonify({
@@ -541,6 +701,8 @@ def create_realisasi_shipside():
     pcm.percentage_realisasi_20dc = pcm.percentage_tl_20dc
     pcm.percentage_realisasi_40hc = pcm.percentage_tl_40hc
 
+    # Compute and save costs
+    _compute_and_save_voyage_cost(cm)
     db.session.commit()
 
     return jsonify({
