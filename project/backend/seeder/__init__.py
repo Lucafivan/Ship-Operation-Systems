@@ -2,7 +2,7 @@ import csv
 from datetime import datetime
 import pandas as pd
 from app import db
-from app.models import Vessel, Port, Voyage, ContainerMovement
+from app.models import Vessel, Port, Voyage, ContainerMovement, PercentageContainerMovement
 from pathlib import Path
 
 
@@ -40,7 +40,14 @@ def safe_float(val):
     except (ValueError, TypeError):
         return 0.0
 
-
+def safe_ratio(num, den):
+    try:
+        if den and den > 0:
+            return round(num / den, 4)
+        return 0.0
+    except ZeroDivisionError:
+        return 0.0
+    
 def run_seed():
     script_path = Path(__file__).resolve()
     root_dir = script_path.parent.parent.parent
@@ -55,9 +62,6 @@ def run_seed():
     try:
         with open(csv_file, newline='', encoding='utf-8') as f:
             reader = csv.DictReader(f)
-
-            print("\n🔍 Kolom terdeteksi:", reader.fieldnames)
-            print("-" * 50)
 
             for row in reader:
                 # Vessel
@@ -127,11 +131,42 @@ def run_seed():
                     obstacles=row['OBSTACLES']
                 )
                 db.session.add(cm)
+                db.session.flush()
+
+                # Buat PercentageContainerMovement berdasarkan cm
+                total_bongkaran_20dc = (cm.bongkaran_empty_20dc or 0) + (cm.bongkaran_full_20dc or 0)
+                total_bongkaran_40hc = (cm.bongkaran_empty_40hc or 0) + (cm.bongkaran_full_40hc or 0)
+                total_pengajuan_20dc = (cm.pengajuan_empty_20dc or 0) + (cm.pengajuan_full_20dc or 0)
+                total_pengajuan_40hc = (cm.pengajuan_empty_40hc or 0) + (cm.pengajuan_full_40hc or 0)
+                total_acc_20dc = (cm.acc_pengajuan_empty_20dc or 0) + (cm.acc_pengajuan_full_20dc or 0)
+                total_acc_40hc = (cm.acc_pengajuan_empty_40hc or 0) + (cm.acc_pengajuan_full_40hc or 0)
+                total_tlss_20dc = (cm.total_realisasi_20dc or 0)
+                total_tlss_40hc = (cm.total_realisasi_40hc or 0)
+
+                pcm = PercentageContainerMovement(
+                    cm_id=cm.id,
+                    total_bongkaran_20dc=total_bongkaran_20dc,
+                    total_bongkaran_40hc=total_bongkaran_40hc,
+                    total_pengajuan_20dc=total_pengajuan_20dc,
+                    total_pengajuan_40hc=total_pengajuan_40hc,
+                    total_acc_20dc=total_acc_20dc,
+                    total_acc_40hc=total_acc_40hc,
+                    total_tlss_20dc=total_tlss_20dc,
+                    total_tlss_40hc=total_tlss_40hc,
+                    # Persentase
+                    percentage_pengajuan_20dc=safe_ratio(total_pengajuan_20dc, total_bongkaran_20dc),
+                    percentage_pengajuan_40hc=safe_ratio(total_pengajuan_40hc, total_bongkaran_40hc),
+                    percentage_acc_20dc=safe_ratio(total_acc_20dc, total_bongkaran_20dc),
+                    percentage_acc_40hc=safe_ratio(total_acc_40hc, total_bongkaran_40hc),
+                    percentage_tl_20dc=safe_ratio(total_tlss_20dc, total_bongkaran_20dc),
+                    percentage_tl_40hc=safe_ratio(total_tlss_40hc, total_bongkaran_40hc),
+                    percentage_realisasi_20dc=safe_ratio(total_tlss_20dc, total_pengajuan_20dc),
+                    percentage_realisasi_40hc=safe_ratio(total_tlss_40hc, total_pengajuan_40hc),
+                )
+                db.session.add(pcm)
 
         db.session.commit()
         print("✅ Seeder selesai dijalankan!")
 
-    except KeyError as e:
-        print(f"❌ ERROR: Nama kolom {e} tidak ditemukan di CSV.")
     except Exception as e:
-        print(f"❌ ERROR tak terduga: {e}")
+        print(f"❌ ERROR: {e}")
