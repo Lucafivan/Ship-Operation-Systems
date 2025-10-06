@@ -4,7 +4,6 @@ import apiClient from "../api/axios";
 import DynamicForm from "../components/form/dynamicform";
 import toast from "react-hot-toast";
 
-// Definisikan tipe data untuk referensi
 interface ContainerMovementReference {
   id: number;
   voyage_id: number;
@@ -15,7 +14,6 @@ const PengajuanPage: React.FC = () => {
   const [movements, setMovements] = useState<ContainerMovementReference[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // 1. Ambil data container movements yang ada untuk referensi
   useEffect(() => {
     const fetchMovements = async () => {
       try {
@@ -32,7 +30,6 @@ const PengajuanPage: React.FC = () => {
     fetchMovements();
   }, []);
 
-  // 2. Definisikan field untuk DynamicForm
   const fields = [
     { name: "id", label: "ID Container Movement", type: "number", placeholder: "Pilih ID dari daftar di atas" },
     { name: "pengajuan_empty_20dc", label: "Pengajuan Empty 20DC", type: "number", placeholder: "Jumlah" },
@@ -41,14 +38,12 @@ const PengajuanPage: React.FC = () => {
     { name: "pengajuan_full_40hc", label: "Pengajuan Full 40HC", type: "number", placeholder: "Jumlah" },
   ];
 
-  // 3. Fungsi untuk menangani submit form
   const handleSubmit = async (data: Record<string, any>) => {
     if (!data.id) {
         toast.error("ID Container Movement wajib diisi!");
         return;
     }
 
-    // Backend sudah punya default 0, tapi kita bisa pastikan datanya number
     const processedData = {
         id: Number(data.id),
         pengajuan_empty_20dc: Number(data.pengajuan_empty_20dc || 0),
@@ -76,7 +71,7 @@ const PengajuanPage: React.FC = () => {
     <div className="flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         
-        {/* Bantuan untuk Pengguna */}
+        {/* Bantuan untuk user */}
         <div className="bg-slate-100 p-4 rounded-lg mb-6 border border-slate-200">
           <h3 className="font-semibold text-gray-700 mb-2">Data Container Movement yang Ada:</h3>
           {movements.length > 0 ? (

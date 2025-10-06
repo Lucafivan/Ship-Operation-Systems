@@ -15,10 +15,10 @@ import Realisasi from './pages/Realisasi';
 import Shipside from './pages/Shipside';
 import Port from './pages/Port';
 import DashboardPage from './pages/Dashboard';
+import CostMapping from './pages/CostMapping';
 
 function App() {
   return (
-    // Bungkus semua rute dengan UIProvider
     <>
       <Toaster position="top-center" reverseOrder={false} />
 
@@ -41,6 +41,7 @@ function App() {
             <Route path="/shipside" element={<Shipside/>}/>
             <Route path="/port" element={<Port/>}/>
             <Route path="/monitoring" element={<MonitoringVoyages />} />
+            <Route path="/cost-mapping" element={<CostMapping />} />
           </Route>
         </Route>
 

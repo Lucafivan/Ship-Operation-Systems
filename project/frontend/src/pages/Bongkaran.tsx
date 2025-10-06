@@ -4,11 +4,10 @@ import apiClient from "../api/axios";
 import DynamicForm from "../components/form/dynamicform";
 import toast from "react-hot-toast";
 
-// Definisikan tipe data yang relevan
 interface Voyage {
   id: number;
   voyage_no: string;
-  vessel_name?: string; // Kita mungkin perlu join di backend untuk ini, tapi kita tampilkan ID saja
+  vessel_name?: string;
 }
 
 interface ContainerMovement {
@@ -21,7 +20,6 @@ const BongkaranPage: React.FC = () => {
   const [availableVoyages, setAvailableVoyages] = useState<Voyage[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // 1. Ambil data voyage yang belum punya data bongkaran
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -53,7 +51,6 @@ const BongkaranPage: React.FC = () => {
     fetchData();
   }, []);
 
-  // 2. Definisikan field untuk DynamicForm
   const fields = [
     { name: "voyage_id", label: "Voyage ID", type: "number", placeholder: "Pilih ID Voyage dari daftar di atas" },
     { name: "bongkaran_empty_20dc", label: "Bongkaran Empty 20DC", type: "number", placeholder: "Jumlah" },
@@ -62,9 +59,7 @@ const BongkaranPage: React.FC = () => {
     { name: "bongkaran_full_40hc", label: "Bongkaran Full 40HC", type: "number", placeholder: "Jumlah" },
   ];
 
-  // 3. Fungsi untuk menangani submit form
   const handleSubmit = async (data: Record<string, any>) => {
-    // Pastikan semua field number dikirim sebagai angka
     const processedData = {
         voyage_id: Number(data.voyage_id),
         bongkaran_empty_20dc: Number(data.bongkaran_empty_20dc || 0),

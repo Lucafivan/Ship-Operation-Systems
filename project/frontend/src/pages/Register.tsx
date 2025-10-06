@@ -11,7 +11,6 @@ import containerPicture from "../assets/container.png";
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 
-// Skema validasi untuk form registrasi
 const registerSchema = z.object({
   username: z.string().min(1, "Username tidak boleh kosong"),
   email: z.string().min(1, "Email tidak boleh kosong").email("Format email tidak valid"),
@@ -19,7 +18,7 @@ const registerSchema = z.object({
   confirmPassword: z.string().min(1, "Konfirmasi password tidak boleh kosong"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Password dan konfirmasi password tidak cocok",
-  path: ["confirmPassword"], // Menampilkan pesan error pada field confirmPassword
+  path: ["confirmPassword"], // Show error on confirmPassword field
 });
 
 type RegisterFormInputs = z.infer<typeof registerSchema>;
@@ -41,7 +40,7 @@ const Register: React.FC = () => {
     toast.loading('Membuat akun...');
     console.log("Data pendaftaran yang akan dikirim:", data);
 
-    // Simulasi pengiriman data ke backend
+    // Send registration data to backend
     try {
       await registerUser({
         username: data.username,

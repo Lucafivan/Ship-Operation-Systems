@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { BarChart3, ClipboardList, Ship, Anchor, LogOut } from "lucide-react";
+import { BarChart3, ClipboardList, Ship, Anchor, LogOut, BikeIcon, Wallet } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import toast from "react-hot-toast";
 
@@ -72,6 +72,15 @@ function Sidebar() {
               className={`whitespace-nowrap overflow-hidden transition-all duration-200 ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
             >
               Port
+            </span>
+          </Link>
+
+          <Link to="/cost-mapping" state={{ keepSidebarOpen: true }} className={getLinkClass("/cost-mapping")}>
+            <Wallet size={20} className="shrink-0" />
+            <span
+              className={`whitespace-nowrap overflow-hidden transition-all duration-200 ${expanded ? "opacity-100 max-w-[160px] ml-2" : "opacity-0 max-w-0 ml-0"}`}
+            >
+              Cost Mapping
             </span>
           </Link>
 
