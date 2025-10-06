@@ -51,20 +51,33 @@ interface ContainerMovement {
   obstacles: string;
   created_at: string;
   updated_at: string;
+  voyage_created_at: string;
 }
 
 const MonitoringVoyages: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [data, setData] = useState<ContainerMovement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [showCost, setShowCost] = useState(false);
   const [estimations, setEstimations] = useState<Record<number, any>>({});
-  // Konfigurasi tampilan scroll body tabel
-  const MAX_VISIBLE_ROWS = 5; // tampilkan maksimal 5 baris sebelum scroll
-  const BODY_ROW_APPROX_PX = 30; // tinggi estimasi per baris (padding + font)
-  const HEADER_STACK_PX = 180; // tinggi header multi-row (4 lapis)
+
+  // Global search states 
+  const [useAllPagesForSearch] = useState(false);
+  const [allData, setAllData] = useState<ContainerMovement[]>([]);
+  const [allLoaded, setAllLoaded] = useState(false);
+  const [loadingAll, setLoadingAll] = useState(false);
+
+  // per-page dropdown state
+  const [perPage, setPerPage] = useState<number>(10);
+
+  const MAX_VISIBLE_ROWS = 10;
+  const BODY_ROW_APPROX_PX = 30;
+  const HEADER_STACK_PX = 180;
   const maxBodyHeight = `calc(${HEADER_STACK_PX}px + ${BODY_ROW_APPROX_PX * MAX_VISIBLE_ROWS}px)`;
-  
+
   type DatePreset = 'all' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom';
   const [datePreset, setDatePreset] = useState<DatePreset>('all');
   const [customStart, setCustomStart] = useState<string>('');
@@ -76,11 +89,12 @@ const MonitoringVoyages: React.FC = () => {
     | "port_name"
     | "voyage_date_berth"
     | "created_at"
-    | "updated_at";
+    | "updated_at"
+    | "voyage_created_at";
   const [sortConfig, setSortConfig] = useState<{
     key: SortKey;
     direction: "asc" | "desc";
-  } | null>(null);
+  } | null>({ key: "voyage_created_at", direction: "desc" });
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingRow, setEditingRow] = useState<ContainerMovement | null>(null);
@@ -104,8 +118,66 @@ const MonitoringVoyages: React.FC = () => {
     });
   };
 
+  // choose data source for pipeline
+  const [searchKey, setSearchKey] = useState<
+    'all' | 'vessel_name' | 'voyage_number' | 'voyage_year' | 'port_name' |
+    'voyage_date_berth' | 'created_at' | 'updated_at' | 'voyage_created_at' | 'obstacles'
+  >('all');
+  const [searchText, setSearchText] = useState('');
+
+  // Source data: if global-search ON **and** ada query, pakai allData; else pakai page data biasa
+  const sourceData: ContainerMovement[] = useMemo(() => {
+    if (useAllPagesForSearch && searchText.trim()) return allData;
+    return data;
+  }, [useAllPagesForSearch, searchText, allData, data]);
+
+  // Ambil semua halaman sekali (cache) saat dibutuhkan
+  const fetchAllPages = async () => {
+    if (loadingAll) return;
+    setLoadingAll(true);
+    try {
+      let page = 1;
+      const acc: ContainerMovement[] = [];
+      let keepGoing = true;
+      // batasi safety max 100 page agar tidak infinite loop
+      for (let i = 0; i < 100 && keepGoing; i++) {
+        const res = await apiClient.get(`/container_movements/?page=${page}&per_page=10`);
+        const rows: ContainerMovement[] = res.data.data || [];
+        const hasNext: boolean = !!res.data.has_next;
+        acc.push(...rows);
+        if (!hasNext) {
+          keepGoing = false;
+        } else {
+          page += 1;
+        }
+      }
+      // de-dup pakai key (id || voyage_id)
+      const map = new Map<number, ContainerMovement>();
+      for (const r of acc) {
+        const k = (r.id ?? r.voyage_id) as number;
+        map.set(k, r);
+      }
+      const merged = Array.from(map.values());
+      setAllData(merged);
+      setAllLoaded(true);
+    } catch (e) {
+      console.error('Gagal mengambil semua halaman', e);
+      toast.error('Gagal mengambil semua halaman untuk pencarian.');
+    } finally {
+      setLoadingAll(false);
+    }
+  };
+
+  // Jika user ON-kan global search dan mengetik query, pastikan cache tersedia
+  useEffect(() => {
+    if (useAllPagesForSearch && searchText.trim() && !allLoaded && !loadingAll) {
+      fetchAllPages();
+    }
+  }, [useAllPagesForSearch, searchText, allLoaded, loadingAll]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pipeline existing (pakai sourceData, bukan data langsung)
   const filteredData = useMemo(() => {
-    if (datePreset === 'all') return data;
+    if (datePreset === 'all') return sourceData;
     const now = new Date();
 
     const startOfWeek = (d: Date) => {
@@ -149,10 +221,10 @@ const MonitoringVoyages: React.FC = () => {
         range = { s, e };
         break; }
       default:
-        return data;
+        return sourceData;
     }
 
-    return data.filter((row) => {
+    return sourceData.filter((row) => {
       if (!row.voyage_date_berth) return false;
       const t = Date.parse(row.voyage_date_berth);
       if (Number.isNaN(t)) return false;
@@ -161,7 +233,7 @@ const MonitoringVoyages: React.FC = () => {
       if (range.e && d > range.e) return false;
       return true;
     });
-  }, [data, datePreset, customStart, customEnd]);
+  }, [sourceData, datePreset, customStart, customEnd]);
 
   const sortedData = useMemo(() => {
     if (!sortConfig) return filteredData;
@@ -175,9 +247,12 @@ const MonitoringVoyages: React.FC = () => {
         const n = Number(s);
         return Number.isFinite(n) ? n : s.toLowerCase();
       }
-      if (key === "voyage_date_berth" || key === "created_at" || key === "updated_at") {
+      if (key === "voyage_date_berth" || key === "created_at" || key === "updated_at" || key === "voyage_created_at") {
         const ts = v ? Date.parse(String(v)) : NaN;
-        return isNaN(ts) ? -Infinity : ts;
+        if (isNaN(ts)) {
+          return direction === 'desc' ? Infinity : -Infinity;
+        }
+        return ts;
       }
       return v == null ? "" : String(v).toLowerCase();
     };
@@ -186,26 +261,76 @@ const MonitoringVoyages: React.FC = () => {
       const bv = getVal(b);
       if (av < bv) return -1 * dir;
       if (av > bv) return 1 * dir;
-      return 0;
+      return (b.id ?? 0) - (a.id ?? 0);
     });
   }, [filteredData, sortConfig]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const ALL_KEYS = useMemo<(keyof ContainerMovement)[]>(() => {
+    const ref = (sourceData.length ? sourceData[0] : (data[0] || {})) as ContainerMovement;
+    return Object.keys(ref) as (keyof ContainerMovement)[];
+  }, [sourceData, data]);
+
+  const finalData = useMemo(() => {
+    // minimal guard: kalau server-side search aktif (default), jangan filter di FE lagi
+    if (searchText.trim() && !useAllPagesForSearch) return sortedData;
+
+    if (!searchText.trim()) return sortedData;
+
+    const q = searchText.trim().toLowerCase();
+    const startsWithQ = (val: unknown) => {
+      if (val == null) return false;
+      const s = String(val).toLowerCase();
+      return s.startsWith(q);
+    };
+
+    if (searchKey === 'all') {
+      return sortedData.filter((row) =>
+        ALL_KEYS.some((k) => startsWithQ((row as any)[k]))
+      );
+    } else {
+      return sortedData.filter((row) => startsWithQ((row as any)[searchKey]));
+    }
+  }, [sortedData, searchText, searchKey, ALL_KEYS, useAllPagesForSearch]);
+
+  // fetchData bisa "silent" agar tidak men-trigger spinner
+  const fetchData = async (page = 1, opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
-      const res = await apiClient.get<ContainerMovement[]>("/container_movements/");
-      setData(res.data);
+      const params = new URLSearchParams();
+      params.set('page', String(page));
+      params.set('per_page', String(perPage));
+      if (!useAllPagesForSearch && searchText.trim()) {
+        params.set('q', searchText.trim());
+        params.set('field', searchKey);
+      }
+
+      const res = await apiClient.get(`/container_movements/?${params.toString()}`);
+      setData(res.data.data);
+      setTotalPages(res.data.pages);
+      setCurrentPage(res.data.current_page);
+      setTotalRecords(res.data.total);
+      // data page berubah -> invalidasi cache allData supaya refresh saat butuh
+      setAllLoaded(false);
     } catch (err) {
       toast.error("Gagal memuat data monitoring.");
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchData(currentPage);
+  }, [currentPage, perPage]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // debounce refetch saat query/kolom berubah (server-side)
+  useEffect(() => {
+    if (useAllPagesForSearch) return; // kalau user pilih global FE search, biarkan FE yang filter
+    const t = setTimeout(() => {
+      fetchData(1, { silent: true });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [searchText, searchKey, useAllPagesForSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchEstimation = async (voyageId: number) => {
     try {
@@ -218,7 +343,11 @@ const MonitoringVoyages: React.FC = () => {
 
   const handleSuccess = () => {
     setIsModalOpen(false);
-    fetchData();
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    } else {
+      fetchData(1);
+    }
   };
 
   if (loading)
@@ -284,15 +413,69 @@ const MonitoringVoyages: React.FC = () => {
               Reset
             </button>
           </div>
-          <div className="flex justify-start px-1">
-            <button
-              onClick={() => setShowCost((s) => !s)}
-              className="text-sm rounded-md border border-slate-300 bg-white px-3 py-1 shadow hover:bg-slate-100"
-              type="button"
-            >
-              {showCost ? 'Tampilkan Container Movement' : 'Tampilkan Cost Estimation'}
-            </button>
+
+          <div className="flex items-end gap-3 px-1">
+            {/* Search controls */}
+            <div className="flex flex-col md:flex-row items-end gap-2">
+              <div className="flex flex-col">
+                <label className="text-xs text-slate-600">Cari</label>
+                <input
+                  type="text"
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  placeholder="misal V09 atau Sukses"
+                  className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="flex flex-col">
+                <label className="text-xs text-slate-600">Pilih Kolom</label>
+                <select
+                  value={searchKey}
+                  onChange={(e) => setSearchKey(e.target.value as any)}
+                  className="mt-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm shadow-sm focus:outline-none"
+                >
+                  <option value="all">Semua kolom</option>
+                  <option value="vessel_name">Vessel</option>
+                  <option value="voyage_number">Voyage Number</option>
+                  <option value="voyage_year">Voyage Year</option>
+                  <option value="port_name">Berth Location</option>
+                  <option value="voyage_date_berth">Date Berth</option>
+                  <option value="created_at">Created</option>
+                  <option value="updated_at">Updated</option>
+                  <option value="voyage_created_at">Voyage Created</option>
+                  <option value="obstacles">Obstacles</option>
+                </select>
+              </div>
+
+              {useAllPagesForSearch && searchText.trim() && (
+                <span className="text-xs text-slate-500">
+                  {loadingAll ? 'Mengambil semua halaman…' : (allLoaded ? `Data terambil: ${allData.length} baris` : 'Siap mengambil semua halaman')}
+                </span>
+              )}
+
+              {searchText && (
+                <button
+                  onClick={() => setSearchText('')}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm shadow hover:bg-slate-200"
+                  type="button"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <div className="flex justify-start">
+              <button
+                onClick={() => setShowCost((s) => !s)}
+                className="text-sm rounded-md border border-slate-300 bg-white px-3 py-1 shadow hover:bg-slate-100"
+                type="button"
+              >
+                {showCost ? 'Tampilkan Container Movement' : 'Tampilkan Cost Estimation'}
+              </button>
+            </div>
           </div>
+
           <Modal
             isOpen={isModalOpen}
             onClose={() => setIsModalOpen(false)}
@@ -302,7 +485,7 @@ const MonitoringVoyages: React.FC = () => {
           </Modal>
         </div>
       </div>
-      {/* Restyled table section */}
+
       <section className="bg-white backdrop-blur rounded-xl p-4 shadow mt-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-medium text-slate-800">
@@ -311,14 +494,6 @@ const MonitoringVoyages: React.FC = () => {
           <div className="flex items-center gap-2">
             {!showCost && (
               <>
-                <button
-                  onClick={fetchData}
-                  className="text-sm text-blue-600 hover:underline disabled:opacity-50"
-                  disabled={loading}
-                  type="button"
-                >
-                  Refresh
-                </button>
                 <button
                   onClick={() => setIsModalOpen(true)}
                   type="button"
@@ -330,194 +505,168 @@ const MonitoringVoyages: React.FC = () => {
             )}
           </div>
         </div>
+
         <div className="overflow-x-auto">
           {!showCost && (
           <div
-            className={`overflow-y-auto ${sortedData.length > MAX_VISIBLE_ROWS ? 'shadow-inner' : ''} custom-scroll`}
-            style={{ maxHeight: sortedData.length > MAX_VISIBLE_ROWS ? maxBodyHeight : 'auto' }}
+            className={`overflow-y-auto ${finalData.length > MAX_VISIBLE_ROWS ? 'shadow-inner' : ''} custom-scroll`}
+            style={{ maxHeight: finalData.length > MAX_VISIBLE_ROWS ? maxBodyHeight : 'auto' }}
           >
             <table className="min-w-[1200px] w-full text-xs md:text-sm border-collapse">
               <thead className="sticky top-0 bg-gray-100 z-10 text-slate-700">
-        <tr className="text-white">
-          <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4}>Action</th>
-          <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "vessel_name" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
-            <button onClick={() => requestSort("vessel_name")} className="flex items-center gap-1 hover:opacity-90">
-              Vessel
-              <span className="text-[10px] opacity-80">{sortConfig?.key === "vessel_name" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
-            </button>
-          </th>
-          <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "voyage_number" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
-            <button onClick={() => requestSort("voyage_number")} className="flex items-center gap-1 hover:opacity-90">
-              Voyage Number
-              <span className="text-[10px] opacity-80">{sortConfig?.key === "voyage_number" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
-            </button>
-          </th>
-          <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "voyage_year" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
-            <button onClick={() => requestSort("voyage_year")} className="flex items-center gap-1 hover:opacity-90">
-              Voyage Year
-              <span className="text-[10px] opacity-80">{sortConfig?.key === "voyage_year" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
-            </button>
-          </th>
-          <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "port_name" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
-            <button onClick={() => requestSort("port_name")} className="flex items-center gap-1 hover:opacity-90">
-              <span>Berth Location</span>
-              <span className="text-[10px] opacity-80">{sortConfig?.key === "port_name" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
-            </button>
-          </th>
-          <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "voyage_date_berth" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
-            <button onClick={() => requestSort("voyage_date_berth")} className="flex items-center gap-1 hover:opacity-90">
-              Date Berth
-              <span className="text-[10px] opacity-80">{sortConfig?.key === "voyage_date_berth" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
-            </button>
-          </th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={4}>Bongkaran</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={4}>Pengajuan</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={4}>Acc Pengajuan</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={3}>Total Pengajuan</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={4}>Realisasi All Depo</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={8}>Shipside</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={3}>Total Realisasi</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={3}>Turun CY</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={4}>% Vessel</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={4}>Obstacles</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={4} aria-sort={sortConfig?.key === "created_at" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
-            <button onClick={() => requestSort("created_at")} className="flex items-center gap-1 hover:opacity-90">
-              Created
-              <span className="text-[10px] opacity-80">{sortConfig?.key === "created_at" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
-            </button>
-          </th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={4} aria-sort={sortConfig?.key === "updated_at" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
-            <button onClick={() => requestSort("updated_at")} className="flex items-center gap-1 hover:opacity-90">
-              Updated
-              <span className="text-[10px] opacity-80">{sortConfig?.key === "updated_at" ? (sortConfig.direction === "asc" ? "▲" : "▼") : "⇅"}</span>
-            </button>
-          </th>
-        </tr>
-        <tr className="text-white">
-          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Empty</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Full</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Empty</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Full</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Empty</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Full</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Box</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={3}>Teus Pengajuan</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>MXD</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>FXD</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={4}>YES</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={4}>NO</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Box</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={3}>Teus Realisasi</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Box</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={3}>Teus Turun CY</th>
-        </tr>
-        <tr className="text-white">
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>MXD</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>FXD</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>MXD</th>
-          <th className="p-2 border border-white bg-emerald-600" colSpan={2}>FXD</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
-          <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
-        </tr>
-        <tr className="text-white">
-          <th className="p-2 border border-white bg-emerald-600">20DC</th>
-          <th className="p-2 border border-white bg-emerald-600">40HC</th>
-          <th className="p-2 border border-white bg-emerald-600">20DC</th>
-          <th className="p-2 border border-white bg-emerald-600">40HC</th>
-          <th className="p-2 border border-white bg-emerald-600">20DC</th>
-          <th className="p-2 border border-white bg-emerald-600">40HC</th>
-          <th className="p-2 border border-white bg-emerald-600">20DC</th>
-          <th className="p-2 border border-white bg-emerald-600">40HC</th>
-        </tr>
+                <tr className="text-white">
+                  <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4}>Action</th>
+                  <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "vessel_name" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
+                    Vessel
+                  </th>
+                  <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "voyage_number" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
+                    Voyage Number
+                  </th>
+                  <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "voyage_year" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
+                    Voyage Year
+                  </th>
+                  <th className="p-2 font-medium border border-white bg-emerald-600 text-white" rowSpan={4} aria-sort={sortConfig?.key === "port_name" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
+                    Berth Location
+                  </th>
+                  {/* Date Berth */}
+                  <th className="p-2 font-medium border border-white bg-emerald-600 text-white w-[120px]" rowSpan={4} aria-sort={sortConfig?.key === "voyage_date_berth" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
+                    <button onClick={() => requestSort("voyage_date_berth")} className="flex items-center gap-1 hover:opacity-90">
+                      Date Berth
+                    </button>
+                  </th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={4}>Bongkaran</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={4}>Pengajuan</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={4}>Acc Pengajuan</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={3}>Total Pengajuan</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={4}>Realisasi All Depo</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={8}>Shipside</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={3}>Total Realisasi</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={3}>Turun CY</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={4}>% Vessel</th>
+                  {/* Obstacles */}
+                  <th className="p-2 border border-white bg-emerald-600 w-[200px]" rowSpan={4}>Obstacles</th>
+                  {/* Created */}
+                  <th className="p-2 border border-white bg-emerald-600 w-[120px]" rowSpan={4} aria-sort={sortConfig?.key === "created_at" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
+                    Created
+                  </th>
+                  {/* Updated */}
+                  <th className="p-2 border border-white bg-emerald-600 w-[120px]" rowSpan={4} aria-sort={sortConfig?.key === "updated_at" ? (sortConfig.direction === "asc" ? "ascending" : "descending") : "none"}>
+                    Updated
+                  </th>
+                </tr>
+                <tr className="text-white">
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Empty</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Full</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Empty</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Full</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Empty</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Full</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Box</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={3}>Teus Pengajuan</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={2}>MXD</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={2}>FXD</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={4}>YES</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={4}>NO</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Box</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={3}>Teus Realisasi</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={2}>Box</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={3}>Teus Turun CY</th>
+                </tr>
+                <tr className="text-white">
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={2}>MXD</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={2}>FXD</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={2}>MXD</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={2}>FXD</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>20DC</th>
+                  <th className="p-2 border border-white bg-emerald-600" rowSpan={2}>40HC</th>
+
+                </tr>
+                <tr className="text-white">
+                  <th className="p-2 border border-white bg-emerald-600">20DC</th>
+                  <th className="p-2 border border-white bg-emerald-600">40HC</th>
+                  <th className="p-2 border border-white bg-emerald-600">20DC</th>
+                  <th className="p-2 border border-white bg-emerald-600">40HC</th>
+                  <th className="p-2 border border-white bg-emerald-600">20DC</th>
+                  <th className="p-2 border border-white bg-emerald-600">40HC</th>
+                  <th className="p-2 border border-white bg-emerald-600">20DC</th>
+                  <th className="p-2 border border-white bg-emerald-600">40HC</th>
+                </tr>
               </thead>
               <tbody>
-        {sortedData.map((row) => (
-          <tr key={row.id} className="hover:bg-gray-50 border-b last:border-b-0">
-            <td className="p-2 align-middle text-center">
-              <button
-                onClick={() => openEdit(row)}
-                className="text-emerald-700 hover:text-emerald-800 hover:underline text-[11px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-400 rounded-sm px-1 py-0.5"
-                type="button"
-              >
-                Edit
-              </button>
-            </td>
-            <td className="p-2 align-middle">{row.vessel_name}</td>
-            <td className="p-2 align-middle">{row.voyage_number}</td>
-            <td className="p-2 align-middle">{row.voyage_year}</td>
-            <td className="p-2 align-middle">{row.port_name}</td>
-            <td className="p-2 align-middle">{row.voyage_date_berth?.slice(0, 10)}</td>
-            {/* Bongkaran */}
-            <td className="p-2 align-middle">{row.bongkaran_empty_20dc}</td>
-            <td className="p-2 align-middle">{row.bongkaran_empty_40hc}</td>
-            <td className="p-2 align-middle">{row.bongkaran_full_20dc}</td>
-            <td className="p-2 align-middle">{row.bongkaran_full_40hc}</td>
-            {/* Pengajuan */}
-            <td className="p-2 align-middle">{row.pengajuan_empty_20dc}</td>
-            <td className="p-2 align-middle">{row.pengajuan_empty_40hc}</td>
-            <td className="p-2 align-middle">{row.pengajuan_full_20dc}</td>
-            <td className="p-2 align-middle">{row.pengajuan_full_40hc}</td>
-            {/* Acc Pengajuan */}
-            <td className="p-2 align-middle">{row.acc_pengajuan_empty_20dc}</td>
-            <td className="p-2 align-middle">{row.acc_pengajuan_empty_40hc}</td>
-            <td className="p-2 align-middle">{row.acc_pengajuan_full_20dc}</td>
-            <td className="p-2 align-middle">{row.acc_pengajuan_full_40hc}</td>
-            {/* Total Pengajuan */}
-            <td className="p-2 align-middle">{row.total_pengajuan_20dc}</td>
-            <td className="p-2 align-middle">{row.total_pengajuan_40hc}</td>
-            <td className="p-2 align-middle">{row.teus_pengajuan}</td>
-            {/* Realisasi All Depo */}
-            <td className="p-2 align-middle">{row.realisasi_mxd_20dc}</td>
-            <td className="p-2 align-middle">{row.realisasi_mxd_40hc}</td>
-            <td className="p-2 align-middle">{row.realisasi_fxd_20dc}</td>
-            <td className="p-2 align-middle">{row.realisasi_fxd_40hc}</td>
-            {/* Shipside YES MXD */}
-            <td className="p-2 align-middle">{row.shipside_yes_mxd_20dc}</td>
-            <td className="p-2 align-middle">{row.shipside_yes_mxd_40hc}</td>
-            {/* Shipside YES FXD */}
-            <td className="p-2 align-middle">{row.shipside_yes_fxd_20dc}</td>
-            <td className="p-2 align-middle">{row.shipside_yes_fxd_40hc}</td>
-            {/* Shipside NO MXD */}
-            <td className="p-2 align-middle">{row.shipside_no_mxd_20dc}</td>
-            <td className="p-2 align-middle">{row.shipside_no_mxd_40hc}</td>
-            {/* Shipside NO FXD */}
-            <td className="p-2 align-middle">{row.shipside_no_fxd_20dc}</td>
-            <td className="p-2 align-middle">{row.shipside_no_fxd_40hc}</td>
-            {/* Total Realisasi */}
-            <td className="p-2 align-middle">{row.total_realisasi_20dc}</td>
-            <td className="p-2 align-middle">{row.total_realisasi_40hc}</td>
-            <td className="p-2 align-middle">{row.teus_realisasi}</td>
-            {/* Turun CY */}
-            <td className="p-2 align-middle">{row.turun_cy_20dc}</td>
-            <td className="p-2 align-middle">{row.turun_cy_40hc}</td>
-            <td className="p-2 align-middle">{row.teus_turun_cy}</td>
-            {/* Sisa kolom */}
-            <td className="p-2 align-middle">{(row.percentage_vessel * 100).toFixed(1)}%</td>
-            <td className="p-2 align-middle">{row.obstacles}</td>
-            <td className="p-2 align-middle">{row.created_at?.slice(0, 10)}</td>
-            <td className="p-2 align-middle">{row.updated_at?.slice(0, 10)}</td>
-          </tr>
-        ))}
+                {finalData.map((row) => (
+                  <tr key={row.id ?? row.voyage_id} className="hover:bg-gray-50 border-b last:border-b-0">
+                    <td className="p-2 align-middle text-center">
+                      <button
+                        onClick={() => openEdit(row)}
+                        className="text-emerald-700 hover:text-emerald-800 hover:underline text-[11px] font-medium focus:outline-none focus:ring-2 focus:ring-emerald-400 rounded-sm px-1 py-0.5"
+                      >
+                        Edit
+                      </button>
+                    </td>
+                    <td className="p-2 align-middle">{row.vessel_name}</td>
+                    <td className="p-2 align-middle">{row.voyage_number}</td>
+                    <td className="p-2 align-middle">{row.voyage_year}</td>
+                    <td className="p-2 align-middle">{row.port_name}</td>
+                    <td className="p-2 align-middle whitespace-nowrap">{row.voyage_date_berth?.slice(0, 10)}</td>
+                    <td className="p-2 align-middle">{row.bongkaran_empty_20dc}</td>
+                    <td className="p-2 align-middle">{row.bongkaran_empty_40hc}</td>
+                    <td className="p-2 align-middle">{row.bongkaran_full_20dc}</td>
+                    <td className="p-2 align-middle">{row.bongkaran_full_40hc}</td>
+                    <td className="p-2 align-middle">{row.pengajuan_empty_20dc}</td>
+                    <td className="p-2 align-middle">{row.pengajuan_empty_40hc}</td>
+                    <td className="p-2 align-middle">{row.pengajuan_full_20dc}</td>
+                    <td className="p-2 align-middle">{row.pengajuan_full_40hc}</td>
+                    <td className="p-2 align-middle">{row.acc_pengajuan_empty_20dc}</td>
+                    <td className="p-2 align-middle">{row.acc_pengajuan_empty_40hc}</td>
+                    <td className="p-2 align-middle">{row.acc_pengajuan_full_20dc}</td>
+                    <td className="p-2 align-middle">{row.acc_pengajuan_full_40hc}</td>
+                    <td className="p-2 align-middle">{row.total_pengajuan_20dc}</td>
+                    <td className="p-2 align-middle">{row.total_pengajuan_40hc}</td>
+                    <td className="p-2 align-middle">{row.teus_pengajuan}</td>
+                    <td className="p-2 align-middle">{row.realisasi_mxd_20dc}</td>
+                    <td className="p-2 align-middle">{row.realisasi_mxd_40hc}</td>
+                    <td className="p-2 align-middle">{row.realisasi_fxd_20dc}</td>
+                    <td className="p-2 align-middle">{row.realisasi_fxd_40hc}</td>
+                    <td className="p-2 align-middle">{row.shipside_yes_mxd_20dc}</td>
+                    <td className="p-2 align-middle">{row.shipside_yes_mxd_40hc}</td>
+                    <td className="p-2 align-middle">{row.shipside_yes_fxd_20dc}</td>
+                    <td className="p-2 align-middle">{row.shipside_yes_fxd_40hc}</td>
+                    <td className="p-2 align-middle">{row.shipside_no_mxd_20dc}</td>
+                    <td className="p-2 align-middle">{row.shipside_no_mxd_40hc}</td>
+                    <td className="p-2 align-middle">{row.shipside_no_fxd_20dc}</td>
+                    <td className="p-2 align-middle">{row.shipside_no_fxd_40hc}</td>
+                    <td className="p-2 align-middle">{row.total_realisasi_20dc}</td>
+                    <td className="p-2 align-middle">{row.total_realisasi_40hc}</td>
+                    <td className="p-2 align-middle">{row.teus_realisasi}</td>
+                    <td className="p-2 align-middle">{row.turun_cy_20dc}</td>
+                    <td className="p-2 align-middle">{row.turun_cy_40hc}</td>
+                    <td className="p-2 align-middle">{row.teus_turun_cy}</td>
+                    <td className="p-2 align-middle">{row.percentage_vessel ? (row.percentage_vessel * 100).toFixed(1) + '%' : '0.0%'}</td>
+                    <td className="p-2 align-middle">{row.obstacles}</td>
+                    <td className="p-2 align-middle whitespace-nowrap">{row.created_at?.slice(0, 10)}</td>
+                    <td className="p-2 align-middle whitespace-nowrap">{row.updated_at?.slice(0, 10)}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -535,10 +684,10 @@ const MonitoringVoyages: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedData.map((row) => {
+                  {finalData.map((row) => {
                     const e = estimations[row.voyage_id];
                     return (
-                      <tr key={`est-${row.id}`} className="hover:bg-gray-50 border-b last:border-b-0">
+                      <tr key={`est-${row.id ?? row.voyage_id}`} className="hover:bg-gray-50 border-b last:border-b-0">
                         <td className="p-2">{row.vessel_name} / {row.voyage_number}-{row.voyage_year}</td>
                         <td className="p-2">{row.port_name}</td>
                         <td className="p-2">{e ? `${e.currency} ${e.grand_total.toLocaleString()}` : '-'}</td>
@@ -559,12 +708,71 @@ const MonitoringVoyages: React.FC = () => {
             </div>
           )}
         </div>
+
+        {!showCost && totalPages > 0 && (
+          <div className="flex items-center justify-between pt-3 border-t mt-4 text-sm">
+            <span className="text-slate-600">
+              Halaman <strong>{currentPage}</strong> dari <strong>{totalPages}</strong> ({totalRecords} data)
+            </span>
+            <div className="flex gap-2 items-center">
+              <div className="flex items-center gap-2 mr-2">
+                <span className="text-slate-600">Rows:</span>
+                <select
+                  value={perPage}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    setPerPage(v);
+                    setCurrentPage(1);
+                  }}
+                  className="rounded-md border border-slate-300 bg-white px-2 py-1 shadow-sm focus:outline-none"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage <= 1}
+                className="rounded-md border border-slate-300 bg-white px-3 py-1 shadow-sm hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                First
+              </button>
+
+              <button
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage <= 1}
+                className="rounded-md border border-slate-300 bg-white px-3 py-1 shadow-sm hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+                className="rounded-md border border-slate-300 bg-white px-3 py-1 shadow-sm hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage >= totalPages}
+                className="rounded-md border border-slate-300 bg-white px-3 py-1 shadow-sm hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Last
+              </button>
+            </div>
+          </div>
+        )}
       </section>
+
       <EditContainerMovementModal
         isOpen={isEditOpen}
         onClose={closeEdit}
         row={editingRow}
-        onUpdated={fetchData}
+        onUpdated={() => fetchData(currentPage)}
       />
     </>
   );
