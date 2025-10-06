@@ -1,8 +1,10 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
-from .models import db, ContainerMovement, Voyage, Port, PercentageContainerMovement, CostRate, VoyageCostEstimation
+from .models import db, ContainerMovement, Voyage, Port, PercentageContainerMovement, CostRate, VoyageCostEstimation, Vessel
 from datetime import datetime
 from sqlalchemy.sql import func
+from sqlalchemy.orm import joinedload
+from sqlalchemy import or_, cast, String
 
 cm_bp = Blueprint('container_movements', __name__)
 
@@ -163,14 +165,58 @@ def _compute_and_save_voyage_cost(cm: ContainerMovement):
 @jwt_required()
 def get_container_movements():
 
-    results = db.session.query(Voyage, ContainerMovement, Port).outerjoin(
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+    except (TypeError, ValueError):
+        return jsonify({"msg": "Parameter halaman tidak valid"}), 400
+
+    q = (request.args.get('q') or '').strip()
+    field = (request.args.get('field') or 'all').strip().lower()
+
+    base_query = db.session.query(Voyage, ContainerMovement, Port).select_from(Voyage).outerjoin(
         ContainerMovement, Voyage.id == ContainerMovement.voyage_id
-    ).join(Port, Voyage.port_id == Port.id).all()
+    ).join(Port, Voyage.port_id == Port.id)\
+     .outerjoin(Vessel, Voyage.vessel_id == Vessel.id)\
+     .order_by(Voyage.created_at.desc())
+
+    def ci_prefix(col, text):
+        return func.lower(cast(col, String)).like((text or '').lower() + '%')
+
+    if q:
+        columns_map = {
+            'vessel_name': Vessel.name,
+            'voyage_number': Voyage.voyage_no,
+            'voyage_year':   Voyage.voyage_yr,
+            'port_name':     Port.name,
+            'voyage_date_berth': Voyage.date_berth,
+            'created_at':    ContainerMovement.created_at,
+            'updated_at':    ContainerMovement.updated_at,
+            'voyage_created_at': Voyage.created_at,
+            'obstacles':     ContainerMovement.obstacles,
+        }
+
+        if field != 'all' and field in columns_map:
+            base_query = base_query.filter(ci_prefix(columns_map[field], q))
+        else:
+            base_query = base_query.filter(or_(
+                ci_prefix(columns_map['vessel_name'], q),
+                ci_prefix(columns_map['voyage_number'], q),
+                ci_prefix(columns_map['voyage_year'], q),
+                ci_prefix(columns_map['port_name'], q),
+                ci_prefix(columns_map['voyage_date_berth'], q),
+                ci_prefix(columns_map['voyage_created_at'], q),
+                ci_prefix(columns_map['created_at'], q),
+                ci_prefix(columns_map['updated_at'], q),
+                ci_prefix(columns_map['obstacles'], q),
+            ))
+
+    paginated_query = base_query.paginate(page=page, per_page=per_page, error_out=False)
+ 
+    results = paginated_query.items
 
     response_data = []
-
     for voyage, movement, port in results:
-        
         item_data = {
             "id": movement.id if movement else None,
             "voyage_id": voyage.id,
@@ -180,7 +226,6 @@ def get_container_movements():
             "port_id": voyage.port_id,
             "port_name": port.name if port else (voyage.port.name if voyage.port else None),
             "voyage_date_berth": voyage.date_berth.isoformat() if voyage.date_berth else None,
-
             "bongkaran_empty_20dc": movement.bongkaran_empty_20dc if movement else None,
             "bongkaran_empty_40hc": movement.bongkaran_empty_40hc if movement else None,
             "bongkaran_full_20dc": movement.bongkaran_full_20dc if movement else None,
@@ -215,13 +260,23 @@ def get_container_movements():
             "turun_cy_40hc": movement.turun_cy_40hc if movement else None,
             "teus_turun_cy": movement.teus_turun_cy if movement else None,
             "percentage_vessel": movement.percentage_vessel if movement else None,
-            "obstacles": movement.obstacles if movement else "", # Dibiarkan string kosong
+            "obstacles": movement.obstacles if movement else "",
             "created_at": movement.created_at.isoformat() if movement and movement.created_at else None,
-            "updated_at": movement.updated_at.isoformat() if movement and movement.updated_at else None
+            "updated_at": movement.updated_at.isoformat() if movement and movement.updated_at else None,
+            "voyage_created_at": voyage.created_at.isoformat() if voyage.created_at else None
         }
         response_data.append(item_data)
         
-    return jsonify(response_data), 200
+    # Mengubah struktur respons JSON untuk menyertakan info paginasi
+    # Respons sekarang adalah objek yang berisi data dan info paginasi
+    return jsonify({
+        "data": response_data,
+        "total": paginated_query.total,
+        "pages": paginated_query.pages,
+        "current_page": paginated_query.page,
+        "has_next": paginated_query.has_next,
+        "has_prev": paginated_query.has_prev
+    }), 200
 
 @cm_bp.route('/bongkaran', methods=['POST'])
 @jwt_required()
