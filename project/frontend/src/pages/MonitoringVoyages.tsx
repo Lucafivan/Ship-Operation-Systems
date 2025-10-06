@@ -565,7 +565,7 @@ const MonitoringVoyages: React.FC = () => {
                   </th>
                   <th className="p-2 border border-white bg-emerald-600" colSpan={4}>Bongkaran</th>
                   <th className="p-2 border border-white bg-emerald-600" colSpan={4}>Pengajuan</th>
-                  <th className="p-2 border border-white bg-emerald-600" colSpan={4}>Acc Pengajuan</th>
+                  <th className="p-2 border border-white bg-emerald-600" colSpan={4}>ACC Pengajuan</th>
                   <th className="p-2 border border-white bg-emerald-600" colSpan={3}>Total Pengajuan</th>
                   <th className="p-2 border border-white bg-emerald-600" colSpan={4}>Realisasi All Depo</th>
                   <th className="p-2 border border-white bg-emerald-600" colSpan={8}>Shipside</th>

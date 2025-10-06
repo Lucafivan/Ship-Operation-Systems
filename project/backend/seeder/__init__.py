@@ -5,7 +5,6 @@ from app import db
 from app.models import Vessel, Port, Voyage, ContainerMovement, PercentageContainerMovement
 from pathlib import Path
 
-
 def parse_date(date_str):
     """Parse tanggal dari berbagai format umum ke datetime Python."""
     if not date_str or str(date_str).strip() == "":
@@ -24,14 +23,12 @@ def parse_date(date_str):
     except Exception:
         return None
 
-
 def safe_int(val):
     """Convert angka string ke int dengan aman."""
     try:
         return int(float(val))
     except (ValueError, TypeError):
         return 0
-
 
 def safe_float(val):
     """Convert angka string ke float dengan aman."""
@@ -166,7 +163,7 @@ def run_seed():
                 db.session.add(pcm)
 
         db.session.commit()
-        print("✅ Seeder selesai dijalankan!")
+        print("Seeder selesai dijalankan!")
 
     except Exception as e:
-        print(f"❌ ERROR: {e}")
+        print(f"ERROR: {e}")

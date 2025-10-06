@@ -102,4 +102,3 @@ def get_voyage_cost_estimation(voyage_id: int):
         'final_cost': to_float(rec.final_cost) if rec else None,
         'computed_at': rec.computed_at.isoformat() if rec and rec.computed_at else None
     })
-
