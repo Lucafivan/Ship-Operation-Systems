@@ -81,7 +81,7 @@ const MonitoringVoyages: React.FC = () => {
   const [perPage, setPerPage] = useState<number>(10);
 
   const MAX_VISIBLE_ROWS = 8;
-  const BODY_ROW_APPROX_PX = 200;
+  const BODY_ROW_APPROX_PX = 50;
   const HEADER_STACK_PX = 180;
   const maxBodyHeight = `calc(${HEADER_STACK_PX}px + ${BODY_ROW_APPROX_PX * MAX_VISIBLE_ROWS}px)`;
   // Cost table header is single-row, so smaller stack height

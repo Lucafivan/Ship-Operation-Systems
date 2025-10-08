@@ -165,7 +165,7 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
       else if (!isRealisasiComplete) setActiveTab('realisasi');
       else setActiveTab('obstacles');
     }
-  }, [row, isOpen]);
+  }, [row, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveBongkaran = async () => {
     if (!row) return;
