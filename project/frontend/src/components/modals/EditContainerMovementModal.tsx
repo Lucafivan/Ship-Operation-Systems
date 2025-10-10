@@ -227,11 +227,7 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
       onClose();
     } catch (e: any) {
       const data = e?.response?.data;
-      if (data?.violations && Array.isArray(data.violations) && data.violations.length > 0) {
-        data.violations.forEach((v: any) => toast.error(v?.msg || data?.msg || 'ACC melebihi Pengajuan'));
-      } else {
-        toast.error(data?.msg || 'Gagal memperbarui ACC Pengajuan');
-      }
+      toast.error(data?.msg || 'Gagal memperbarui ACC Pengajuan');
     } finally {
       setSaving(false);
     }
@@ -263,11 +259,7 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
       onClose();
     } catch (e: any) {
       const data = e?.response?.data;
-      if (data?.violations && Array.isArray(data.violations) && data.violations.length > 0) {
-        data.violations.forEach((v: any) => toast.error(v?.msg || data?.msg || 'Input melebihi batas'));
-      } else {
-        toast.error(data?.msg || 'Gagal memperbarui Realisasi/Shipside');
-      }
+      toast.error(data?.msg || 'Gagal memperbarui Realisasi/Shipside');
     } finally {
       setSaving(false);
     }

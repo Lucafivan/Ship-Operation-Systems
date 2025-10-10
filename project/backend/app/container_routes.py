@@ -479,22 +479,6 @@ def create_acc_pengajuan():
     ]):
         return jsonify({"msg": "Data pengajuan belum tersedia untuk ContainerMovement ini"}), 400
 
-    violations = []
-    if acc_pengajuan_empty_20dc > (cm.pengajuan_empty_20dc or 0):
-        violations.append({"field": "acc_pengajuan_empty_20dc", "value": acc_pengajuan_empty_20dc, "max": cm.pengajuan_empty_20dc or 0,
-                           "msg": f"ACC Pengajuan Empty 20DC ({acc_pengajuan_empty_20dc}) melebihi Pengajuan ({cm.pengajuan_empty_20dc or 0})."})
-    if acc_pengajuan_empty_40hc > (cm.pengajuan_empty_40hc or 0):
-        violations.append({"field": "acc_pengajuan_empty_40hc", "value": acc_pengajuan_empty_40hc, "max": cm.pengajuan_empty_40hc or 0,
-                           "msg": f"ACC Pengajuan Empty 40HC ({acc_pengajuan_empty_40hc}) melebihi Pengajuan ({cm.pengajuan_empty_40hc or 0})."})
-    if acc_pengajuan_full_20dc > (cm.pengajuan_full_20dc or 0):
-        violations.append({"field": "acc_pengajuan_full_20dc", "value": acc_pengajuan_full_20dc, "max": cm.pengajuan_full_20dc or 0,
-                           "msg": f"ACC Pengajuan Full 20DC ({acc_pengajuan_full_20dc}) melebihi Pengajuan ({cm.pengajuan_full_20dc or 0})."})
-    if acc_pengajuan_full_40hc > (cm.pengajuan_full_40hc or 0):
-        violations.append({"field": "acc_pengajuan_full_40hc", "value": acc_pengajuan_full_40hc, "max": cm.pengajuan_full_40hc or 0,
-                           "msg": f"ACC Pengajuan Full 40HC ({acc_pengajuan_full_40hc}) melebihi Pengajuan ({cm.pengajuan_full_40hc or 0})."})
-
-    if violations:
-        return jsonify({"msg": "ACC Pengajuan melebihi nilai Pengajuan", "violations": violations}), 400
 
     cm.acc_pengajuan_empty_20dc = acc_pengajuan_empty_20dc
     cm.acc_pengajuan_empty_40hc = acc_pengajuan_empty_40hc
@@ -607,22 +591,7 @@ def create_realisasi_shipside():
     total_realisasi_20dc = total_realisasi_empty_20dc + total_realisasi_full_20dc
     total_realisasi_40hc = total_realisasi_empty_40hc + total_realisasi_full_40hc
 
-    violations = []
-    if total_realisasi_empty_20dc > (cm.acc_pengajuan_empty_20dc or 0):
-        violations.append({"field": "realisasi/shipside_empty_20dc", "value": total_realisasi_empty_20dc, "max": cm.acc_pengajuan_empty_20dc or 0,
-                           "msg": f"Total Realisasi/Shipside Empty 20DC ({total_realisasi_empty_20dc}) melebihi ACC Pengajuan ({cm.acc_pengajuan_empty_20dc or 0})."})
-    if total_realisasi_empty_40hc > (cm.acc_pengajuan_empty_40hc or 0):
-        violations.append({"field": "realisasi/shipside_empty_40hc", "value": total_realisasi_empty_40hc, "max": cm.acc_pengajuan_empty_40hc or 0,
-                           "msg": f"Total Realisasi/Shipside Empty 40HC ({total_realisasi_empty_40hc}) melebihi ACC Pengajuan ({cm.acc_pengajuan_empty_40hc or 0})."})
-    if total_realisasi_full_20dc > (cm.acc_pengajuan_full_20dc or 0):
-        violations.append({"field": "realisasi/shipside_full_20dc", "value": total_realisasi_full_20dc, "max": cm.acc_pengajuan_full_20dc or 0,
-                           "msg": f"Total Realisasi/Shipside Full 20DC ({total_realisasi_full_20dc}) melebihi ACC Pengajuan ({cm.acc_pengajuan_full_20dc or 0})."})
-    if total_realisasi_full_40hc > (cm.acc_pengajuan_full_40hc or 0):
-        violations.append({"field": "realisasi/shipside_full_40hc", "value": total_realisasi_full_40hc, "max": cm.acc_pengajuan_full_40hc or 0,
-                           "msg": f"Total Realisasi/Shipside Full 40HC ({total_realisasi_full_40hc}) melebihi ACC Pengajuan ({cm.acc_pengajuan_full_40hc or 0})."})
-
-    if violations:
-        return jsonify({"msg": "Realisasi/Shipside melebihi batas ACC Pengajuan", "violations": violations}), 400
+    # Hapus pembatasan: Total Realisasi/Shipside boleh melebihi nilai ACC Pengajuan
 
     cm.realisasi_mxd_20dc = realisasi_mxd_20dc
     cm.realisasi_mxd_40hc = realisasi_mxd_40hc

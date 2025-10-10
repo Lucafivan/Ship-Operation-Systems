@@ -150,7 +150,10 @@ const DashboardPage: React.FC = () => {
               onChange={(e) => setSelectedPortId(Number(e.target.value))}
               className="w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring focus:ring-green-500 focus:ring-opacity-50"
             >
-              {summaryData.map(item => (
+              {summaryData
+              .slice()
+              .sort((a, b) => a.port_name.localeCompare(b.port_name, undefined, { sensitivity: 'base' }))
+              .map(item => (
                 <option key={item.port_id} value={item.port_id}>
                   {item.port_name}
                 </option>
