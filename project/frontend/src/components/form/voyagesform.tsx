@@ -43,10 +43,32 @@ const VoyageForm: React.FC<VoyageFormProps> = ({ onSuccess }) => {
     fetchData();
   }, []);
 
+  const sortedVessels = React.useMemo(
+    () => [...vessels].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })),
+    [vessels]
+  );
+
+  const sortedPorts = React.useMemo(
+    () => [...ports].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })),
+    [ports]
+  );
+
   const fields = [
-    { name: "vessel_id", label: "Vessel", type: "select", placeholder: "Pilih vessel", options: vessels.map(v => ({ value: String(v.id), label: v.name })) },
+    { 
+      name: "vessel_id", 
+      label: "Vessel", 
+      type: "select", 
+      placeholder: "Pilih vessel", 
+      options: sortedVessels.map(v => ({ value: String(v.id), label: v.name })) 
+    },
     { name: "voyage_yr", label: "Tahun Voyage", type: "number", placeholder: "2025" },
-    { name: "port_id", label: "Berth Location", type: "select", placeholder: "Pilih berth location", options: ports.map(port => ({ value: String(port.id), label: port.name })) },
+    { 
+      name: "port_id", 
+      label: "Berth Location", 
+      type: "select", 
+      placeholder: "Pilih berth location", 
+      options: sortedPorts.map(port => ({ value: String(port.id), label: port.name })) 
+    },
     { name: "date_berth", label: "Tanggal Sandar", type: "date" },
   ];
 
