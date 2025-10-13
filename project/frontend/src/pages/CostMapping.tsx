@@ -58,15 +58,21 @@ const CostMapping: React.FC = () => {
   }, []);
 
   const onChangeField = (id: number, field: string, val: string) => {
-    setRates(prev => prev.map(r => r.id === id ? { ...r, [field]: Number(val) } : r));
+    setRates(prev => prev.map(r => (r.id === id ? { ...r, [field]: val } : r)));
   };
 
   const saveRow = async (row: CostRateRow) => {
     setSavingId(row.id);
     try {
       const payload: any = { port_id: row.port_id };
-      costFields.forEach(f => {
-        if (row[f] !== undefined) payload[f] = row[f];
+      costFields.forEach((f) => {
+        const raw = row[f];
+        if (raw === undefined || raw === null || String(raw).trim() === '') {
+          payload[f] = 0;
+        } else {
+          const parsed = parseFloat(String(raw));
+          payload[f] = Number.isFinite(parsed) ? parsed : 0;
+        }
       });
       await apiClient.put(`/cost/cost-rates/${row.id}`, payload);
       toast.success('Berhasil menyimpan cost rate');
@@ -78,11 +84,11 @@ const CostMapping: React.FC = () => {
     }
   };
 
-  if (loading) return <div className="p-6 text-slate-600">Loading Cost Mapping…</div>;
+  if (loading) return <div className="p-6 text-center text-gray-50 font-semibold">Memuat Cost Mapping…</div>;
 
   return (
     <div className="overflow-x-auto">
-      <h1 className="text-2xl font-semibold mb-4 text-slate-800">Cost Mapping</h1>
+      <h1 className="text-2xl font-semibold mb-4 text-gray-50">Cost Mapping</h1>
 
       <section className="bg-white backdrop-blur rounded-xl p-4 shadow">
         <div className="flex items-center justify-between mb-3">
@@ -146,17 +152,32 @@ const CostMapping: React.FC = () => {
                       </button>
                     </td>
                     <td className="p-2 border align-middle">{portNameById.get(r.port_id) || `Port #${r.port_id}`}</td>
-                    {costFields.map((f) => (
-                      <td key={f} className="p-1 border align-middle">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={Number(r[f] || 0)}
-                          onChange={(e) => onChangeField(r.id, f, e.target.value)}
-                          className="w-24 rounded border border-slate-300 px-2 py-1 text-xs"
-                        />
-                      </td>
-                    ))}
+                    {costFields.map((f) => {
+                      const raw = r[f] as any;
+                      const value = raw === undefined || raw === null || String(raw).trim() === ''
+                        ? ''
+                        : String(raw);
+                      return (
+                        <td key={f} className="p-1 border align-middle">
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={value}
+                            onChange={(e) => onChangeField(r.id, f, e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                if (savingId !== r.id) {
+                                  saveRow(r);
+                                }
+                              }
+                            }}
+                            className="w-24 rounded border border-slate-300 px-2 py-1 text-xs"
+                            placeholder="0"
+                          />
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
                 {rates.length === 0 && (
