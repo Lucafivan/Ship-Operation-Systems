@@ -48,12 +48,12 @@ def safe_ratio(num, den):
 def run_seed():
     script_path = Path(__file__).resolve()
     root_dir = script_path.parent.parent.parent
-    csv_file = root_dir / "Data" / "Ship_Operation_Data_Cleaned.csv"
+    csv_file = root_dir / "data" / "Ship_Operation_Data_Cleaned.csv"
 
-    print(f"📂 Baca CSV dari: {csv_file}")
+    print(f" Baca CSV dari: {csv_file}")
 
     if not csv_file.is_file():
-        print(f"❌ ERROR: File tidak ditemukan: {csv_file}")
+        print(f"ERROR: File tidak ditemukan: {csv_file}")
         return
 
     try:
