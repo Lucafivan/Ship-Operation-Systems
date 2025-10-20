@@ -1,11 +1,8 @@
-# Lokasi: backend/app/prediction_routes.py
-
 import os
 import joblib
 import pandas as pd
 from flask import Blueprint, request, jsonify
 
-# 1. Definisikan Blueprint dan variabel global
 ml_bp = Blueprint('ml_api', __name__)
 loaded_models = {}
 # Variabel 'flag' untuk memastikan model hanya di-load satu kali
@@ -27,12 +24,9 @@ model_files = {
 }
 
 def load_all_models(app):
-    # Gunakan app.root_path untuk mendapatkan path ke folder 'app'
     backend_path = os.path.dirname(app.root_path)
     models_path = os.path.join(backend_path, 'ml_models')
-    
-    print("\n" + "="*50)
-    print("MEMUAT MODEL MACHINE LEARNING")
+
     print(f"Mencari model di path: {models_path}")
     
     with app.app_context(): # Pastikan kita berada dalam konteks aplikasi
