@@ -2,8 +2,9 @@ import csv
 from datetime import datetime
 import pandas as pd
 from app import db
-from app.models import Vessel, Port, Voyage, ContainerMovement, PercentageContainerMovement
+from app.models import Vessel, Port, Voyage, ContainerMovement, PercentageContainerMovement, CostRate
 from pathlib import Path
+from random import uniform
 
 def parse_date(date_str):
     """Parse tanggal dari berbagai format umum ke datetime Python."""
@@ -48,12 +49,12 @@ def safe_ratio(num, den):
 def run_seed():
     script_path = Path(__file__).resolve()
     root_dir = script_path.parent.parent.parent
-    csv_file = root_dir / "Data" / "Ship_Operation_Data_Cleaned.csv"
+    csv_file = root_dir / "data" / "Ship_Operation_Data_Cleaned.csv"
 
-    print(f"📂 Baca CSV dari: {csv_file}")
+    print(f" Baca CSV dari: {csv_file}")
 
     if not csv_file.is_file():
-        print(f"❌ ERROR: File tidak ditemukan: {csv_file}")
+        print(f"ERROR: File tidak ditemukan: {csv_file}")
         return
 
     try:
@@ -161,6 +162,48 @@ def run_seed():
                     percentage_realisasi_40hc=safe_ratio(total_tlss_40hc, total_pengajuan_40hc),
                 )
                 db.session.add(pcm)
+
+            print("Menambahkan dummy CostRate...")
+            ports = Port.query.all()
+            for port in ports:
+                # Cek biar gak dobel seed
+                if CostRate.query.filter_by(port_id=port.id).first():
+                    continue
+
+                cost_rate = CostRate(
+                    port_id=port.id,
+                    # --- Tidak TL ---
+                    tdk_tl_20mt=100000,
+                    tdk_tl_40mt=200000,
+                    tdk_tl_20fl=30000,
+                    tdk_tl_40fl=12000,
+
+                    # --- TL ---
+                    tl_20mt=50000,
+                    tl_40mt=100000,
+                    tl_20fl=30000,
+                    tl_40fl=40000,
+
+                    # --- Ship Side (YES) ---
+                    shipside_yes_20mt=10000,
+                    shipside_yes_40mt=32500,
+                    shipside_yes_20fl=40000,
+                    shipside_yes_40fl=40000,
+
+                    # --- Ship Side (NO) ---
+                    shipside_no_20mt=42000,
+                    shipside_no_40mt=22000,
+                    shipside_no_20fl=12000,
+                    shipside_no_40fl=32000,
+
+                    # --- Turun CY ---
+                    turun_cy_20mt=12000,
+                    turun_cy_40mt=12000,
+                    turun_cy_20fl=12000,
+                    turun_cy_40fl=12000
+                )
+                db.session.add(cost_rate)
+
 
         db.session.commit()
         print("Seeder selesai dijalankan!")
