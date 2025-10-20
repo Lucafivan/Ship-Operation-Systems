@@ -55,7 +55,7 @@ def create_app():
         from .port_routes import port_bp
         from .percentage_routes import percentage_bp
         from .cost_routes import cost_bp
-        from .api.ml.prediction_routes import ml_bp
+        from .prediction_routes import ml_bp
 
         @jwt.token_in_blocklist_loader
         def check_if_token_in_blocklist(jwt_header, jwt_payload):
@@ -80,5 +80,8 @@ def create_app():
     app.register_blueprint(percentage_bp, url_prefix='/percentages')
     app.register_blueprint(cost_bp, url_prefix='/cost')
     app.register_blueprint(ml_bp, url_prefix='/predict')
+
+    from .prediction_routes import load_all_models
+    load_all_models(app)
 
     return app
