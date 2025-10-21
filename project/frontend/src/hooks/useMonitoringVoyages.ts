@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import apiClient from '../api/axios';
 import toast from 'react-hot-toast';
 import type { ContainerMovement, DatePreset, SortConfig, SortKey, VoyageEstimation } from '../pages/monitoring.types';
+import { PredictionService, type SizeKey } from '../services/PredictionService';
 
 export function useMonitoringVoyages() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -12,6 +13,8 @@ export function useMonitoringVoyages() {
   const [totalRecords, setTotalRecords] = useState(0);
   const [showCost, setShowCost] = useState(false);
   const [estimations, setEstimations] = useState<Record<number, VoyageEstimation>>({});
+  const [predictions, setPredictions] = useState<Record<number, Partial<ContainerMovement>>>({});
+  const predictingRef = useRef<Set<number>>(new Set());
 
   const [useAllPagesForSearch] = useState(false);
   const [allData, setAllData] = useState<ContainerMovement[]>([]);
@@ -261,6 +264,217 @@ export function useMonitoringVoyages() {
     }
   };
 
+  const deriveSizeKeys = (row: ContainerMovement): Array<{
+    size: SizeKey;
+    bongkar: number;
+    pengajuan: number;
+    acc: number;
+  }> => [
+    { size: 'empty_20', bongkar: row.bongkaran_empty_20dc, pengajuan: row.pengajuan_empty_20dc, acc: row.acc_pengajuan_empty_20dc },
+    { size: 'empty_40', bongkar: row.bongkaran_empty_40hc, pengajuan: row.pengajuan_empty_40hc, acc: row.acc_pengajuan_empty_40hc },
+    { size: 'full_20', bongkar: row.bongkaran_full_20dc, pengajuan: row.pengajuan_full_20dc, acc: row.acc_pengajuan_full_20dc },
+    { size: 'full_40', bongkar: row.bongkaran_full_40hc, pengajuan: row.pengajuan_full_40hc, acc: row.acc_pengajuan_full_40hc },
+  ];
+
+  const ensurePredictionsForRow = async (row: ContainerMovement) => {
+    const key = row.voyage_id;
+    if (predictions[key]) return;
+    if (predictingRef.current.has(key)) return;
+    predictingRef.current.add(key);
+    if (import.meta.env.DEV) {
+      console.debug('[predict] ensure start', { key, vessel: row.vessel_name, voyage: `${row.voyage_number}-${row.voyage_year}` });
+    }
+    const partial: Partial<ContainerMovement> = {};
+    const baseFeatures: Record<string, any> = {
+      'BERTH LOCATION': row.port_name,
+      'VESSEL ID (DMY)': row.vessel_name,
+      'Voyage Yr': row.voyage_year,
+      'Voyage No.': row.voyage_number,
+    };
+    const ensureNum = (v: any) => (v == null || Number.isNaN(v) ? 0 : Number(v));
+    const buildBongkaranFeatures = (r: ContainerMovement) => ({
+      'TOTAL BONGKARAN_EMPTY_20 DC': ensureNum(r.bongkaran_empty_20dc),
+      'TOTAL BONGKARAN_EMPTY_40 HC': ensureNum(r.bongkaran_empty_40hc),
+      'TOTAL BONGKARAN_FULL_20 DC': ensureNum(r.bongkaran_full_20dc),
+      'TOTAL BONGKARAN_FULL_40 HC': ensureNum(r.bongkaran_full_40hc),
+    });
+    const buildPengajuanFeatures = (r: ContainerMovement) => ({
+      'PENGAJUAN KE PLANNER_EMPTY_20 DC': ensureNum(r.pengajuan_empty_20dc),
+      'PENGAJUAN KE PLANNER_EMPTY_40 HC': ensureNum(r.pengajuan_empty_40hc),
+      'PENGAJUAN KE PLANNER_FULL_20 DC': ensureNum(r.pengajuan_full_20dc),
+      'PENGAJUAN KE PLANNER_FULL_40 HC': ensureNum(r.pengajuan_full_40hc),
+    });
+    const buildAccFeatures = (r: ContainerMovement) => ({
+      'ACC PENGAJUAN_EMPTY_20 DC': ensureNum(r.acc_pengajuan_empty_20dc),
+      'ACC PENGAJUAN_EMPTY_40 HC': ensureNum(r.acc_pengajuan_empty_40hc),
+      'ACC PENGAJUAN_FULL_20 DC': ensureNum(r.acc_pengajuan_full_20dc),
+      'ACC PENGAJUAN_FULL_40 HC': ensureNum(r.acc_pengajuan_full_40hc),
+    });
+    const ctx = {
+      vessel: row.vessel_name,
+      voyage_number: row.voyage_number,
+      voyage_year: row.voyage_year,
+      port_name: row.port_name,
+      voyage_id: row.voyage_id,
+    };
+
+    const anyAccPresent = [
+      row.acc_pengajuan_empty_20dc,
+      row.acc_pengajuan_empty_40hc,
+      row.acc_pengajuan_full_20dc,
+      row.acc_pengajuan_full_40hc,
+    ].some((v) => v != null && !Number.isNaN(v as any));
+    const anyPengajuanPresent = [
+      row.pengajuan_empty_20dc,
+      row.pengajuan_empty_40hc,
+      row.pengajuan_full_20dc,
+      row.pengajuan_full_40hc,
+    ].some((v) => v != null && !Number.isNaN(v as any));
+    const anyBongkarPresent = [
+      row.bongkaran_empty_20dc,
+      row.bongkaran_empty_40hc,
+      row.bongkaran_full_20dc,
+      row.bongkaran_full_40hc,
+    ].some((v) => v != null && !Number.isNaN(v as any));
+
+    const mode: 'realisasi' | 'acc' | 'pengajuan' | 'none' = anyAccPresent
+      ? 'realisasi'
+      : anyPengajuanPresent
+      ? 'acc'
+      : anyBongkarPresent
+      ? 'pengajuan'
+      : 'none';
+    if (import.meta.env.DEV) {
+      console.debug('[predict] mode', { ...ctx, mode });
+    }
+
+    if (mode === 'pengajuan') {
+      for (const sk of deriveSizeKeys(row)) {
+        const hasBongkar = sk.bongkar != null && !Number.isNaN(sk.bongkar);
+        const pengajuanMissing = sk.pengajuan == null || Number.isNaN(sk.pengajuan);
+        const needsPengajuan = pengajuanMissing && hasBongkar;
+        if (import.meta.env.DEV) {
+          console.debug('[predict] pengajuan gate', { size: sk.size, bongkar: sk.bongkar, pengajuan: sk.pengajuan, needsPengajuan });
+        }
+        if (needsPengajuan) {
+          if (import.meta.env.DEV) {
+            console.debug('[predict][call] pengajuan', { ...ctx, size: sk.size, input_from: 'bongkaran', value: sk.bongkar });
+          }
+          const pred = await PredictionService.predictPengajuan(sk.size, { ...baseFeatures, ...buildBongkaranFeatures(row) });
+          if (pred != null) {
+            if (import.meta.env.DEV) {
+              console.debug('[predict][result] pengajuan', { ...ctx, size: sk.size, value: pred });
+            }
+            if (sk.size === 'empty_20') partial.pengajuan_empty_20dc = pred;
+            if (sk.size === 'empty_40') partial.pengajuan_empty_40hc = pred;
+            if (sk.size === 'full_20') partial.pengajuan_full_20dc = pred;
+            if (sk.size === 'full_40') partial.pengajuan_full_40hc = pred;
+          } else if (import.meta.env.DEV) {
+            console.debug('[predict][no-result] pengajuan', { ...ctx, size: sk.size });
+          }
+        }
+      }
+    } else if (mode === 'acc') {
+      for (const sk of deriveSizeKeys(row)) {
+        const hasPengajuan = sk.pengajuan != null && !Number.isNaN(sk.pengajuan);
+        const accMissing = sk.acc == null || Number.isNaN(sk.acc);
+        const needsAcc = accMissing && hasPengajuan;
+        if (import.meta.env.DEV) {
+          console.debug('[predict] acc gate', { size: sk.size, pengajuan: sk.pengajuan, acc: sk.acc, needsAcc });
+        }
+        if (needsAcc) {
+          if (import.meta.env.DEV) {
+            console.debug('[predict][call] acc', { ...ctx, size: sk.size, input_from: 'pengajuan', value: sk.pengajuan });
+          }
+          const pred = await PredictionService.predictAcc(sk.size, {
+            ...baseFeatures,
+            ...buildBongkaranFeatures(row),
+            ...buildPengajuanFeatures(row),
+          });
+          if (pred != null) {
+            if (import.meta.env.DEV) {
+              console.debug('[predict][result] acc', { ...ctx, size: sk.size, value: pred });
+            }
+            if (sk.size === 'empty_20') partial.acc_pengajuan_empty_20dc = pred;
+            if (sk.size === 'empty_40') partial.acc_pengajuan_empty_40hc = pred;
+            if (sk.size === 'full_20') partial.acc_pengajuan_full_20dc = pred;
+            if (sk.size === 'full_40') partial.acc_pengajuan_full_40hc = pred;
+          } else if (import.meta.env.DEV) {
+            console.debug('[predict][no-result] acc', { ...ctx, size: sk.size });
+          }
+        }
+      }
+    } else if (mode === 'realisasi') {
+      for (const sk of deriveSizeKeys(row)) {
+        const needEmpty20 = sk.size === 'empty_20' && (
+          row.realisasi_mxd_20dc == null || row.shipside_yes_mxd_20dc == null || row.shipside_no_mxd_20dc == null
+        );
+        const needEmpty40 = sk.size === 'empty_40' && (
+          row.realisasi_mxd_40hc == null || row.shipside_yes_mxd_40hc == null || row.shipside_no_mxd_40hc == null
+        );
+        const needFull20 = sk.size === 'full_20' && (
+          row.realisasi_fxd_20dc == null || row.shipside_yes_fxd_20dc == null || row.shipside_no_fxd_20dc == null
+        );
+        const needFull40 = sk.size === 'full_40' && (
+          row.realisasi_fxd_40hc == null || row.shipside_yes_fxd_40hc == null || row.shipside_no_fxd_40hc == null
+        );
+        const needThisSize = needEmpty20 || needEmpty40 || needFull20 || needFull40;
+        if (import.meta.env.DEV) {
+          console.debug('[predict] realisasi gate', { size: sk.size, acc: sk.acc, needThisSize });
+        }
+        if (needThisSize && (sk.acc != null && !Number.isNaN(sk.acc))) {
+          if (import.meta.env.DEV) {
+            console.debug('[predict][call] realisasi', { ...ctx, size: sk.size, input_from: 'acc', value: sk.acc });
+          }
+          const result = await PredictionService.predictRealisasi(sk.size, {
+            ...baseFeatures,
+            ...buildBongkaranFeatures(row),
+            ...buildPengajuanFeatures(row),
+            ...buildAccFeatures(row),
+          });
+          if (result) {
+            if (import.meta.env.DEV) {
+              console.debug('[predict][result] realisasi', { ...ctx, size: sk.size, result });
+            }
+            if (sk.size === 'empty_20') {
+              if (row.realisasi_mxd_20dc == null) partial.realisasi_mxd_20dc = result['REALISASI_ALL_DEPO_MXD_20_DC'] ?? row.realisasi_mxd_20dc;
+              if (row.shipside_yes_mxd_20dc == null) partial.shipside_yes_mxd_20dc = result['SHIPSIDE_YES_MXD_20_DC'] ?? row.shipside_yes_mxd_20dc;
+              if (row.shipside_no_mxd_20dc == null) partial.shipside_no_mxd_20dc = result['SHIPSIDE_NO_MXD_20_DC'] ?? row.shipside_no_mxd_20dc;
+            }
+            if (sk.size === 'empty_40') {
+              if (row.realisasi_mxd_40hc == null) partial.realisasi_mxd_40hc = result['REALISASI_ALL_DEPO_MXD_40_HC'] ?? row.realisasi_mxd_40hc;
+              if (row.shipside_yes_mxd_40hc == null) partial.shipside_yes_mxd_40hc = result['SHIPSIDE_YES_MXD_40_HC'] ?? row.shipside_yes_mxd_40hc;
+              if (row.shipside_no_mxd_40hc == null) partial.shipside_no_mxd_40hc = result['SHIPSIDE_NO_MXD_40_HC'] ?? row.shipside_no_mxd_40hc;
+            }
+            if (sk.size === 'full_20') {
+              if (row.realisasi_fxd_20dc == null) partial.realisasi_fxd_20dc = result['REALISASI_ALL_DEPO_FXD_20_DC'] ?? row.realisasi_fxd_20dc;
+              if (row.shipside_yes_fxd_20dc == null) partial.shipside_yes_fxd_20dc = result['SHIPSIDE_YES_FXD_20_DC'] ?? row.shipside_yes_fxd_20dc;
+              if (row.shipside_no_fxd_20dc == null) partial.shipside_no_fxd_20dc = result['SHIPSIDE_NO_FXD_20_DC'] ?? row.shipside_no_fxd_20dc;
+            }
+            if (sk.size === 'full_40') {
+              if (row.realisasi_fxd_40hc == null) partial.realisasi_fxd_40hc = result['REALISASI_ALL_DEPO_FXD_40_HC'] ?? row.realisasi_fxd_40hc;
+              if (row.shipside_yes_fxd_40hc == null) partial.shipside_yes_fxd_40hc = result['SHIPSIDE_YES_FXD_40_HC'] ?? row.shipside_yes_fxd_40hc;
+              if (row.shipside_no_fxd_40hc == null) partial.shipside_no_fxd_40hc = result['SHIPSIDE_NO_FXD_40_HC'] ?? row.shipside_no_fxd_40hc;
+            }
+          } else if (import.meta.env.DEV) {
+            console.debug('[predict][no-result] realisasi', { ...ctx, size: sk.size });
+          }
+        }
+      }
+    }
+
+    if (Object.keys(partial).length > 0) {
+      setPredictions((prev) => ({ ...prev, [key]: partial }));
+      if (import.meta.env.DEV) {
+        console.debug('[predict] cache update', { key, fields: Object.keys(partial) });
+      }
+    }
+    predictingRef.current.delete(key);
+    if (import.meta.env.DEV) {
+      console.debug('[predict] ensure end', { key });
+    }
+  };
+
   const openEdit = (row: ContainerMovement) => {
     setEditingRow(row);
     setIsEditOpen(true);
@@ -277,6 +491,7 @@ export function useMonitoringVoyages() {
     data, loading, currentPage, setCurrentPage, totalPages, totalRecords,
     showCost, setShowCost,
     estimations,
+    predictions,
     useAllPagesForSearch, allData, allLoaded, loadingAll,
     perPage, setPerPage,
     datePreset, setDatePreset, customStart, setCustomStart, customEnd, setCustomEnd,
@@ -285,7 +500,7 @@ export function useMonitoringVoyages() {
     searchKey, setSearchKey, searchText, setSearchText,
     // derived
     sourceData, filteredData, finalData,
-    // actions
     fetchData, fetchEstimation, openEdit, closeEdit,
+    ensurePredictionsForRow,
   } as const;
 }

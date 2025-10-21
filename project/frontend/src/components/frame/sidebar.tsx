@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { BarChart3, ClipboardList, Ship, Anchor, LogOut, BikeIcon, Wallet } from "lucide-react";
+import { BarChart3, ClipboardList, Ship, Anchor, LogOut, Wallet } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import toast from "react-hot-toast";
 
