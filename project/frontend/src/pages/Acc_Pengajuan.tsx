@@ -53,9 +53,9 @@ const AccPengajuanPage: React.FC = () => {
     };
 
     try {
-      const res = await apiClient.post("/container_movements/acc_pengajuan", processedData);
+      await apiClient.post("/container_movements/acc_pengajuan", processedData);
       toast.success("Data ACC Pengajuan berhasil diperbarui!");
-      navigate("/realisasi"); // Arahkan kembali ke halaman daftar
+      navigate("/realisasi");
     } catch (err: any) {
       console.error("Error submit:", err.response || err);
       toast.error(err.response?.data?.msg || "Gagal memperbarui data.");

@@ -69,10 +69,9 @@ const BongkaranPage: React.FC = () => {
     };
 
     try {
-      // Asumsi cm_bp didaftarkan dengan prefix /container_movements
-      const res = await apiClient.post("/container_movements/bongkaran", processedData);
+      await apiClient.post("/container_movements/bongkaran", processedData);
       toast.success("Data bongkaran berhasil dibuat!");
-      navigate("/pengajuan"); // Arahkan ke halaman daftar setelah sukses
+      navigate("/pengajuan");
     } catch (err: any) {
       console.error("Error submit:", err.response || err);
       toast.error(err.response?.data?.msg || "Gagal menyimpan data bongkaran.");
