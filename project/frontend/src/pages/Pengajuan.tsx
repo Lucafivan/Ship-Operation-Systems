@@ -53,9 +53,10 @@ const PengajuanPage: React.FC = () => {
     };
 
     try {
-      await apiClient.post("/container_movements/pengajuan", processedData);
+      // Asumsi cm_bp didaftarkan dengan prefix /container_movements
+      const res = await apiClient.post("/container_movements/pengajuan", processedData);
       toast.success("Data pengajuan berhasil diperbarui!");
-      navigate("/acc_pengajuan");
+      navigate("/acc_pengajuan"); // Arahkan kembali ke halaman daftar
     } catch (err: any) {
       console.error("Error submit:", err.response || err);
       toast.error(err.response?.data?.msg || "Gagal memperbarui data.");
