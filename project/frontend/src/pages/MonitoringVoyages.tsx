@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Modal from "../components/modals";
 import EditContainerMovementModal from "../components/modals/EditContainerMovementModal";
 import VoyageForm from "../components/form/voyagesform";
@@ -25,6 +25,8 @@ const MonitoringVoyages: React.FC = () => {
     finalData,
     fetchData,
     openEdit, closeEdit,
+    predictions,
+    ensurePredictionsForRow,
   } = useMonitoringVoyages();
 
   const MAX_VISIBLE_ROWS = 8;
@@ -43,15 +45,20 @@ const MonitoringVoyages: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    const visible = finalData.slice(0, 15);
+    visible.forEach((row) => { void ensurePredictionsForRow(row); });
+  }, [finalData]);
+
   if (loading)
     return (
-      <div className="p-6 text-center text-gray-50 font-semibold">Memuat Monitoring Voyages…</div>
+      <div className="p-6 text-center text-slate-700 font-semibold">Memuat Monitoring Voyages…</div>
     );
 
   return (
     <>
       <div className="overflow-x-auto">
-        <h1 className="text-2xl font-semibold mb-4 text-gray-50">
+         <h1 className="text-2xl font-semibold mb-4 text-white">
           Monitoring Voyages
         </h1>
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
@@ -200,6 +207,26 @@ const MonitoringVoyages: React.FC = () => {
 
         <div className="overflow-x-auto">
           {!showCost && (
+            <div className="mb-2 text-[11px] text-slate-600">
+              <span className="inline-flex items-center gap-1 mr-3">
+                <span className="inline-block w-3 h-3 rounded-sm bg-green-200 border border-green-400" />
+                <span>Prediksi</span>
+              </span>
+              <span className="inline-flex items-center gap-1 mr-3">
+                <span className="inline-block w-3 h-3 rounded-sm bg-amber-200 border border-amber-400" />
+                <span>Pengajuan &gt; Bongkaran</span>
+              </span>
+              <span className="inline-flex items-center gap-1 mr-3">
+                <span className="inline-block w-3 h-3 rounded-sm bg-rose-200 border border-rose-400" />
+                <span>ACC &gt; Pengajuan</span>
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block w-3 h-3 rounded-sm bg-indigo-200 border border-indigo-400" />
+                <span>Realisasi &gt; ACC</span>
+              </span>
+            </div>
+          )}
+          {!showCost && (
           <div
             className={`overflow-y-auto ${finalData.length > MAX_VISIBLE_ROWS ? 'shadow-inner' : ''} custom-scroll`}
             style={{ maxHeight: finalData.length > MAX_VISIBLE_ROWS ? maxBodyHeight : 'auto' }}
@@ -207,9 +234,17 @@ const MonitoringVoyages: React.FC = () => {
             <table className="min-w-[1200px] w-full text-xs md:text-sm border-collapse">
               <CMHeader sortConfig={sortConfig} requestSort={requestSort} />
               <tbody>
-                {finalData.map((row) => (
-                  <CMRow key={row.id ?? row.voyage_id} row={row} onEdit={openEdit} />
-                ))}
+                {finalData.map((row) => {
+                  const predicted = predictions[row.voyage_id];
+                  return (
+                    <CMRow key={row.id ?? row.voyage_id} row={row} predicted={predicted} onEdit={openEdit} />
+                  );
+                })}
+                {finalData.length === 0 && (
+                  <tr>
+                    <td colSpan={32} className="p-4 text-center text-slate-500">Tidak ada data untuk ditampilkan.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
