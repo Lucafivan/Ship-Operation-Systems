@@ -34,7 +34,7 @@ const VesselPage: React.FC = () => {
 
   const handleSubmit = async (data: Record<string, any>) => {
     try {
-      const res = await apiClient.post("/vessels", data);
+      await apiClient.post("/vessels", data);
       toast.success("Vessel berhasil dibuat!");
       
       const updatedVessels = await apiClient.get<Vessel[]>("/vessels");
