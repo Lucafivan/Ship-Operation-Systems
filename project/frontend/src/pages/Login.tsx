@@ -11,6 +11,7 @@ import spilLogo from "../assets/spil_logo.png";
 import containerPicture from "../assets/container.png";
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { PasswordInput } from '../components/ui/PasswordInput';
 
 const loginSchema = z.object({
   email: z.string().min(1, "Email tidak boleh kosong").email("Format email tidak valid"),
@@ -73,7 +74,7 @@ const LoginPage: React.FC = () => {
             <Input type="email" placeholder="mail@email.com" hasError={!!errors.email} {...register("email")} />
             {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
             <label className="block mt-4 text-xs text-gray-600 text-left">password</label>
-            <Input type="password" placeholder="password" hasError={!!errors.password} {...register("password")} />
+            <PasswordInput placeholder="password" hasError={!!errors.password} {...register("password")} />
             {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
             {/* Actions */}
             <div className="mt-6 flex items-center gap-4">

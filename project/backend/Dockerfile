@@ -1,5 +1,6 @@
 FROM python:3.11-slim
 ENV PYTHONUNBUFFERED=1
+ENV FLASK_APP=run.py
 
 WORKDIR /app
 
@@ -20,8 +21,8 @@ COPY . .
 # Expose port Flask
 EXPOSE 5000
 
-CMD ["python", "run.py"]
-
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
-ENTRYPOINT ["/entrypoint.sh"]
+RUN sed -i 's/\r$//' /entrypoint.sh
+ENTRYPOINT ["sh", "/entrypoint.sh"]
+CMD ["python", "run.py"]

@@ -10,6 +10,7 @@ import spilLogo from "../assets/spil_logo.png";
 import containerPicture from "../assets/container.png";
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { PasswordInput } from '../components/ui/PasswordInput';
 
 const registerSchema = z.object({
   username: z.string().min(1, "Username tidak boleh kosong"),
@@ -87,12 +88,12 @@ const Register: React.FC = () => {
 
             {/* password */}
             <label className="block mt-4 text-xs text-gray-600 text-left">password</label>
-            <Input type="password" placeholder='password' hasError={!!errors.password} {...register("password")} />
+            <PasswordInput placeholder='password' hasError={!!errors.password} {...register("password")} />
             {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
 
             {/* confirm password */}
             <label className="block mt-4 text-xs text-gray-600 text-left">confirm password</label>
-            <Input type="password" placeholder='password' hasError={!!errors.confirmPassword} {...register("confirmPassword")} />
+            <PasswordInput placeholder='password' hasError={!!errors.confirmPassword} {...register("confirmPassword")} />
             {errors.confirmPassword && <p className="mt-1 text-xs text-red-600">{errors.confirmPassword.message}</p>}
 
             {/* Actions */}
