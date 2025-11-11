@@ -2,8 +2,6 @@ import { createContext, useState, useContext, useEffect, type ReactNode } from "
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || window.location.origin;
-
 interface User {
   id: number;
   username: string;
@@ -44,7 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!refreshToken) return false;
     try {
       const res = await axios.post("/auth/refresh", null, {
-        baseURL: API_BASE_URL,
+        baseURL: "http://localhost:5000",
         headers: { Authorization: `Bearer ${refreshToken}` },
       });
       localStorage.setItem("access_token", res.data.access_token);
