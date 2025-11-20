@@ -9,16 +9,37 @@ interface ContainerMovementReference {
   voyage_id: number;
 }
 
+interface VoyageRef {
+  id: number;
+  vessel_id: number;
+  voyage_no: string;
+  voyage_yr: number;
+  port_id: number | null;
+  port_name: string | null;
+}
+
+interface PortRef {
+  id: number;
+  name: string;
+}
+
 const PengajuanPage: React.FC = () => {
   const navigate = useNavigate();
   const [movements, setMovements] = useState<ContainerMovementReference[]>([]);
+  const [voyages, setVoyages] = useState<VoyageRef[]>([]);
+  const [ports, setPorts] = useState<PortRef[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSubmittingBerth, setIsSubmittingBerth] = useState<boolean>(false);
 
   useEffect(() => {
-    const fetchMovements = async () => {
+    const fetchData = async () => {
       try {
         const response = await apiClient.get<ContainerMovementReference[]>("/container_movements/");
         setMovements(response.data);
+        const voyagesRes = await apiClient.get<VoyageRef[]>("/voyages");
+        setVoyages(voyagesRes.data);
+        const portsRes = await apiClient.get<PortRef[]>("/ports");
+        setPorts(portsRes.data);
       } catch (error) {
         console.error("Gagal mengambil data container movements:", error);
         toast.error("Gagal memuat data referensi.");
@@ -26,8 +47,7 @@ const PengajuanPage: React.FC = () => {
         setIsLoading(false);
       }
     };
-
-    fetchMovements();
+    fetchData();
   }, []);
 
   const fields = [
@@ -59,6 +79,33 @@ const PengajuanPage: React.FC = () => {
     } catch (err: any) {
       console.error("Error submit:", err.response || err);
       toast.error(err.response?.data?.msg || "Gagal memperbarui data.");
+    }
+  };
+
+  const berthFields = [
+    { name: "voyage_id", label: "Voyage", type: "select", placeholder: "Pilih voyage",
+      options: voyages.map(v => ({ value: String(v.id), label: `V${v.voyage_no} - Vessel ${v.vessel_id}` })) },
+    { name: "port_id", label: "Berth Location", type: "select", placeholder: "Pilih port",
+      options: ports.map(p => ({ value: String(p.id), label: p.name })) }
+  ];
+
+  const handleBerthSubmit = async (data: Record<string, any>) => {
+    if (!data.voyage_id || !data.port_id) {
+      toast.error("Voyage dan Port wajib dipilih");
+      return;
+    }
+    setIsSubmittingBerth(true);
+    try {
+      await apiClient.put(`/voyages/${data.voyage_id}/port`, { port_id: Number(data.port_id) });
+      toast.success("Berth location berhasil diperbarui!");
+      // Refresh voyages to reflect changes
+      const voyagesRes = await apiClient.get<VoyageRef[]>("/voyages");
+      setVoyages(voyagesRes.data);
+    } catch (err: any) {
+      console.error("Error set berth:", err.response || err);
+      toast.error(err.response?.data?.msg || "Gagal memperbarui berth location.");
+    } finally {
+      setIsSubmittingBerth(false);
     }
   };
 
@@ -94,6 +141,15 @@ const PengajuanPage: React.FC = () => {
           onSubmit={handleSubmit}
           buttonText="Update Pengajuan"
         />
+
+        <div className="mt-10">
+          <DynamicForm
+            title="Set / Ubah Berth Location Voyage"
+            fields={berthFields}
+            onSubmit={handleBerthSubmit}
+            buttonText={isSubmittingBerth ? "Memproses..." : "Simpan Berth"}
+          />
+        </div>
 
       </div>
     </div>

@@ -43,7 +43,7 @@ class Voyage(db.Model):
     __tablename__ = 'voyages'
     id = db.Column(db.Integer, primary_key=True)
     vessel_id = db.Column(db.Integer, db.ForeignKey('vessels.id'), nullable=False)
-    port_id = db.Column(db.Integer, db.ForeignKey('ports.id'), nullable=False)
+    port_id = db.Column(db.Integer, db.ForeignKey('ports.id'), nullable=True)
     voyage_no = db.Column(db.String(50), nullable=False)
     voyage_yr = db.Column(db.Integer, nullable=False)
     date_berth = db.Column(db.DateTime, nullable=False)
