@@ -65,16 +65,17 @@ def create_voyage():
     date_berth = data.get('date_berth')
 
     if not all([vessel_id, voyage_yr, date_berth]):
-        return jsonify({"msg": "Semua field diperlukan"}), 400
+        return jsonify({"msg": "vessel_id, voyage_yr, dan date_berth wajib diisi"}), 400
 
     port = None
     if port_id:
         port = Port.query.filter_by(id=port_id).first()
+        if not port:
+            return jsonify({"msg": "port_id tidak valid"}), 400
     elif port_name:
         port = Port.query.filter(Port.name.ilike(port_name)).first()
-
-    if not port:
-        return jsonify({"msg": "Port tidak ditemukan (gunakan port_id atau port_name yang valid)"}), 400
+        if not port:
+            return jsonify({"msg": "port_name tidak ditemukan"}), 400
 
     last_voyage = Voyage.query.filter_by(vessel_id=vessel_id, voyage_yr=voyage_yr).order_by(Voyage.voyage_no.desc()).first()
     if last_voyage:
@@ -90,7 +91,7 @@ def create_voyage():
         vessel_id=vessel_id,
         voyage_no=next_voyage_no,
         voyage_yr=voyage_yr,
-        port_id=port.id,
+        port_id=port.id if port else None,
         date_berth=date_berth
     )
     db.session.add(new_voyage)
@@ -102,7 +103,36 @@ def create_voyage():
         "voyage_no": new_voyage.voyage_no,
         "voyage_yr": new_voyage.voyage_yr,
         "port_id": new_voyage.port_id,
-        "port_name": port.name,
+        "port_name": port.name if port else None,
         "date_berth": new_voyage.date_berth.isoformat(),
         "created_at": new_voyage.created_at.isoformat()
     }}), 201
+
+@main_bp.route('/voyages/<int:voyage_id>/port', methods=['PUT'])
+@jwt_required()
+def set_voyage_port(voyage_id: int):
+    voyage = Voyage.query.get_or_404(voyage_id)
+    data = request.get_json() or {}
+    port_id = data.get('port_id')
+    port_name = data.get('port_name')
+
+    if not port_id and not port_name:
+        return jsonify({"msg": "Masukkan port_id atau port_name"}), 400
+
+    port = None
+    if port_id:
+        port = Port.query.filter_by(id=port_id).first()
+    elif port_name:
+        port = Port.query.filter(Port.name.ilike(port_name)).first()
+
+    if not port:
+        return jsonify({"msg": "Port tidak ditemukan"}), 404
+
+    voyage.port_id = port.id
+    db.session.commit()
+
+    return jsonify({"msg": "Berth location diperbarui", "voyage": {
+        "id": voyage.id,
+        "port_id": voyage.port_id,
+        "port_name": port.name
+    }}), 200
