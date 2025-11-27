@@ -2,6 +2,7 @@ import os
 import joblib
 import pandas as pd
 from flask import Blueprint, request, jsonify
+from .models import CostRate, Voyage
 
 ml_bp = Blueprint('ml_api', __name__)
 loaded_models = {}
@@ -75,6 +76,101 @@ def handle_multi_output_prediction(model_key, target_names):
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@ml_bp.route('/cost_estimation_preview', methods=['POST'])
+def cost_estimation_preview():
+    """Hitung Estimasi Cost 1 & 2 (moneter) per port berbasis prediksi pengajuan & acc.
+
+    Input JSON:
+    {
+      "voyage_id": 123,
+      "bongkaran": {"empty_20": 10, "empty_40": 5, "full_20": 3, "full_40": 7},
+      "ports": [
+         {"port_id": 1, "pengajuan": {"empty_20": 8, ...}, "acc": {"empty_20": 6, ...}},
+         ...
+      ]
+    }
+
+    Mengembalikan estimasi_cost1 & estimasi_cost2 per port menggunakan formula:
+      Cost1 = p*tl + (b-p)*tdk_tl
+      Cost2 = acc*tl + (b-acc)*tdk_tl
+    Per kategori size, dijumlahkan menjadi total.
+    Jika CostRate untuk port tidak ada -> nilai null.
+    """
+    data = request.get_json() or {}
+    voyage_id = data.get('voyage_id')
+    bongkaran = data.get('bongkaran') or {}
+    ports_payload = data.get('ports') or []
+
+    # Optional: validasi voyage (tidak wajib ada kalau sekadar preview)
+    voyage = None
+    if voyage_id:
+        voyage = Voyage.query.get(voyage_id)
+
+    def safe_int(x):
+        try:
+            return int(x or 0)
+        except Exception:
+            return 0
+
+    # Mapping size key -> suffix rate
+    suffix_map = {
+        'empty_20': '20mt',
+        'empty_40': '40mt',
+        'full_20':  '20fl',
+        'full_40':  '40fl',
+    }
+
+    results = []
+    for port_entry in ports_payload:
+        port_id = port_entry.get('port_id')
+        pengajuan_map = port_entry.get('pengajuan') or {}
+        acc_map = port_entry.get('acc') or {}
+        rate = CostRate.query.filter_by(port_id=port_id).first()
+        if not rate:
+            results.append({
+                'port_id': port_id,
+                'estimation_cost1': None,
+                'estimation_cost2': None,
+                'detail': {},
+                'has_rate': False,
+            })
+            continue
+        total_cost1 = 0.0
+        total_cost2 = 0.0
+        detail = {}
+        for size_key, suffix in suffix_map.items():
+            b_val = safe_int(bongkaran.get(size_key))
+            p_val = safe_int(pengajuan_map.get(size_key))
+            acc_val = safe_int(acc_map.get(size_key))
+            tl_rate = float(getattr(rate, f'tl_{suffix}', 0) or 0)
+            tdk_tl_rate = float(getattr(rate, f'tdk_tl_{suffix}', 0) or 0)
+            cost1_cat = p_val * tl_rate + max(0, b_val - p_val) * tdk_tl_rate
+            cost2_cat = acc_val * tl_rate + max(0, b_val - acc_val) * tdk_tl_rate
+            total_cost1 += cost1_cat
+            total_cost2 += cost2_cat
+            detail[size_key] = {
+                'b': b_val,
+                'p': p_val,
+                'acc': acc_val,
+                'tl_rate': tl_rate,
+                'tdk_tl_rate': tdk_tl_rate,
+                'cost1_segment': cost1_cat,
+                'cost2_segment': cost2_cat,
+            }
+        results.append({
+            'port_id': port_id,
+            'estimation_cost1': round(total_cost1, 2),
+            'estimation_cost2': round(total_cost2, 2),
+            'detail': detail,
+            'has_rate': True,
+        })
+
+    return jsonify({
+        'voyage_id': voyage_id,
+        'has_voyage': voyage is not None,
+        'costs': results,
+    })
 
 @ml_bp.route('/bongkaran_to_pengajuan/empty_20', methods=['POST'])
 def pred_bongkaran_pengajuan_e20():
