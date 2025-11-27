@@ -176,7 +176,7 @@ def get_container_movements():
 
     base_query = db.session.query(Voyage, ContainerMovement, Port).select_from(Voyage).outerjoin(
         ContainerMovement, Voyage.id == ContainerMovement.voyage_id
-    ).join(Port, Voyage.port_id == Port.id)\
+    ).outerjoin(Port, Voyage.port_id == Port.id)\
      .outerjoin(Vessel, Voyage.vessel_id == Vessel.id)\
      .order_by(Voyage.created_at.desc())
 

@@ -23,6 +23,16 @@ const CostMapping: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<number | null>(null);
 
+  const formatIDR = (val: any) => {
+    const num = Number(val);
+    if (!Number.isFinite(num)) return '';
+    try {
+      return 'Rp' + new Intl.NumberFormat('id-ID').format(Math.round(num));
+    } catch {
+      return 'Rp' + String(Math.round(num));
+    }
+  };
+
   // Scroll behavior similar to Monitoring Voyages
   const MAX_VISIBLE_ROWS = 8;
   const BODY_ROW_APPROX_PX = 34;
@@ -159,22 +169,27 @@ const CostMapping: React.FC = () => {
                         : String(raw);
                       return (
                         <td key={f} className="p-1 border align-middle">
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={value}
-                            onChange={(e) => onChangeField(r.id, f, e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                if (savingId !== r.id) {
-                                  saveRow(r);
+                          <div className="flex flex-col gap-1">
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={value}
+                              onChange={(e) => onChangeField(r.id, f, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  if (savingId !== r.id) {
+                                    saveRow(r);
+                                  }
                                 }
-                              }
-                            }}
-                            className="w-24 rounded border border-slate-300 px-2 py-1 text-xs"
-                            placeholder="0"
-                          />
+                              }}
+                              className="w-24 rounded border border-slate-300 px-2 py-1 text-xs"
+                              placeholder="0"
+                            />
+                            {value !== '' && (
+                              <span className="text-[10px] text-slate-500">{formatIDR(value)}</span>
+                            )}
+                          </div>
                         </td>
                       );
                     })}

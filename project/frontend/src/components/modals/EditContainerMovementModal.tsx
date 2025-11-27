@@ -3,6 +3,7 @@ import Modal from '../modals';
 import apiClient from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Lock } from 'lucide-react';
+import { PredictionService, type SizeKey } from '../../services/PredictionService';
 
 const NumberInput = ({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) => (
   <div>
@@ -78,8 +79,18 @@ interface EditContainerMovementModalProps {
 type TabKey = 'bongkaran' | 'pengajuan' | 'acc_pengajuan' | 'realisasi' | 'obstacles';
 
 const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({ isOpen, onClose, row, onUpdated }) => {
+  const formatIDR = (val: number | null | undefined) => {
+    if (val == null || !isFinite(Number(val))) return '-';
+    try {
+      return 'Rp' + new Intl.NumberFormat('id-ID').format(Math.round(Number(val)));
+    } catch {
+      return 'Rp' + String(Math.round(Number(val)));
+    }
+  };
   const [activeTab, setActiveTab] = useState<TabKey>('bongkaran');
   const [obstaclesValue, setObstaclesValue] = useState('');
+  const [ports, setPorts] = useState<{ id: number; name: string }[]>([]);
+  const [selectedPortId, setSelectedPortId] = useState<string>('');
   // Bongkaran
   const [bongkaranEmpty20, setBongkaranEmpty20] = useState<number>(0);
   const [bongkaranEmpty40, setBongkaranEmpty40] = useState<number>(0);
@@ -111,6 +122,8 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
   const [noFxd40, setNoFxd40] = useState<number>(0);
 
   const [saving, setSaving] = useState(false);
+  const [predLoading, setPredLoading] = useState(false);
+  const [predictionsByPort, setPredictionsByPort] = useState<Record<number, { pengajuan: Record<SizeKey, number | null>; acc: Record<SizeKey, number | null>; cost1?: number; cost2?: number; hasRate?: boolean }>>({});
 
   const isBongkaranComplete = !!row && (row.bongkaran_empty_20dc > 0 || row.bongkaran_empty_40hc > 0 || row.bongkaran_full_20dc > 0 || row.bongkaran_full_40hc > 0);
   const isPengajuanComplete = !!row && (row.pengajuan_empty_20dc > 0 || row.pengajuan_empty_40hc > 0 || row.pengajuan_full_20dc > 0 || row.pengajuan_full_40hc > 0);
@@ -164,8 +177,127 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
       else if (!isAccPengajuanComplete) setActiveTab('acc_pengajuan');
       else if (!isRealisasiComplete) setActiveTab('realisasi');
       else setActiveTab('obstacles');
+
+      if (!row.port_name) {
+        void (async () => {
+          try {
+            const res = await apiClient.get<{ id: number; name: string }[]>('/ports');
+            setPorts(res.data);
+          } catch (e) {
+            console.error('Gagal memuat ports', e);
+          }
+        })();
+      }
+      setSelectedPortId('');
     }
   }, [row, isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  React.useEffect(() => {
+    const shouldPredict = !!row && activeTab === 'pengajuan' && !row.port_name && ports.length > 0;
+    if (!shouldPredict) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        setPredLoading(true);
+        const next: Record<number, { pengajuan: Record<SizeKey, number | null>; acc: Record<SizeKey, number | null> }> = {};
+        for (const p of ports) {
+          const ensureNum = (v: any) => (v == null || Number.isNaN(v) ? 0 : Number(v));
+          const baseFeatures: Record<string, any> = {
+            'BERTH LOCATION': p.name,
+            'VESSEL ID (DMY)': row!.vessel_name,
+            'Voyage Yr': row!.voyage_year,
+            'Voyage No.': row!.voyage_number,
+          };
+          const bongkaranFeatures: Record<string, any> = {
+            'TOTAL BONGKARAN_EMPTY_20 DC': ensureNum(row!.bongkaran_empty_20dc),
+            'TOTAL BONGKARAN_EMPTY_40 HC': ensureNum(row!.bongkaran_empty_40hc),
+            'TOTAL BONGKARAN_FULL_20 DC': ensureNum(row!.bongkaran_full_20dc),
+            'TOTAL BONGKARAN_FULL_40 HC': ensureNum(row!.bongkaran_full_40hc),
+          };
+          const sizes: SizeKey[] = ['empty_20', 'empty_40', 'full_20', 'full_40'];
+          const pengajuan: Record<SizeKey, number | null> = { empty_20: null, empty_40: null, full_20: null, full_40: null };
+          const acc: Record<SizeKey, number | null> = { empty_20: null, empty_40: null, full_20: null, full_40: null };
+          // Predict Pengajuan based on Bongkaran -> Pengajuan models
+          for (const s of sizes) {
+            pengajuan[s] = await PredictionService.predictPengajuan(s, { ...baseFeatures, ...bongkaranFeatures });
+          }
+          // Predict ACC based on Pengajuan -> ACC models
+          for (const s of sizes) {
+            const pengajuanFeatures: Record<string, any> = {
+              'PENGAJUAN KE PLANNER_EMPTY_20 DC': ensureNum(pengajuan.empty_20),
+              'PENGAJUAN KE PLANNER_EMPTY_40 HC': ensureNum(pengajuan.empty_40),
+              'PENGAJUAN KE PLANNER_FULL_20 DC': ensureNum(pengajuan.full_20),
+              'PENGAJUAN KE PLANNER_FULL_40 HC': ensureNum(pengajuan.full_40),
+            };
+            const accPayload = { ...baseFeatures, ...bongkaranFeatures, ...pengajuanFeatures };
+            acc[s] = await PredictionService.predictAcc(s, accPayload);
+          }
+          next[p.id] = { pengajuan, acc };
+        }
+        if (!cancelled) setPredictionsByPort(next);
+      } catch (e) {
+        console.warn('Gagal memuat prediksi', e);
+      } finally {
+        if (!cancelled) setPredLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, row, ports]);
+
+  // Fetch monetary cost estimations after prediction values are ready
+  React.useEffect(() => {
+    if (!row || activeTab !== 'pengajuan' || row.port_name || Object.keys(predictionsByPort).length === 0) return;
+    let cancelled = false;
+    const bongkaran = {
+      empty_20: row.bongkaran_empty_20dc || 0,
+      empty_40: row.bongkaran_empty_40hc || 0,
+      full_20: row.bongkaran_full_20dc || 0,
+      full_40: row.bongkaran_full_40hc || 0,
+    };
+    const portsPayload = Object.entries(predictionsByPort).map(([pid, data]) => ({
+      port_id: Number(pid),
+      pengajuan: {
+        empty_20: data.pengajuan.empty_20 || 0,
+        empty_40: data.pengajuan.empty_40 || 0,
+        full_20: data.pengajuan.full_20 || 0,
+        full_40: data.pengajuan.full_40 || 0,
+      },
+      acc: {
+        empty_20: data.acc.empty_20 || 0,
+        empty_40: data.acc.empty_40 || 0,
+        full_20: data.acc.full_20 || 0,
+        full_40: data.acc.full_40 || 0,
+      },
+    }));
+    void (async () => {
+      try {
+        const res = await apiClient.post('/predict/cost_estimation_preview', {
+          voyage_id: row.voyage_id,
+          bongkaran,
+          ports: portsPayload,
+        });
+        if (cancelled) return;
+        const costs: Array<any> = res.data?.costs || [];
+        setPredictionsByPort((prev) => {
+          const copy = { ...prev };
+          for (const c of costs) {
+            const entry = copy[c.port_id];
+            if (entry) {
+              entry.cost1 = c.estimation_cost1;
+              entry.cost2 = c.estimation_cost2;
+              entry.hasRate = c.has_rate;
+            }
+          }
+          return copy;
+        });
+      } catch (e) {
+        console.warn('Gagal memuat estimasi biaya', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [predictionsByPort, activeTab, row]);
 
   const saveBongkaran = async () => {
     if (!row) return;
@@ -193,6 +325,17 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
     if (!row) return;
     setSaving(true);
     try {
+      if (!row.port_name && selectedPortId) {
+        try {
+          await apiClient.put(`/voyages/${row.voyage_id}/port`, { port_id: Number(selectedPortId) });
+          toast.success('Berth location diset untuk voyage ini');
+          await onUpdated();
+        } catch (err: any) {
+          const data = err?.response?.data;
+          toast.error(data?.msg || 'Gagal menyetel berth location');
+          throw err;
+        }
+      }
       await apiClient.post('/container_movements/pengajuan', {
         id: row.id,
         pengajuan_empty_20dc: Number(pengajuanEmpty20 || 0),
@@ -333,6 +476,78 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
       case 'pengajuan':
         return (
           <div className="space-y-3">
+            {activeTab === 'pengajuan' && !row.port_name && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-amber-800">Prediksi Pengajuan & ACC per Berth</h4>
+                  {predLoading && <span className="text-xs text-amber-700">Menghitung prediksi…</span>}
+                </div>
+                <div className="overflow-auto">
+                  <div className="min-w-[1200px]">
+                    <div className="grid grid-cols-11 gap-2 text-[11px] font-semibold text-amber-900 border-b border-amber-200 pb-1 items-end">
+                      <div>Berth</div>
+                      <div>Pengajuan E20</div>
+                      <div>Pengajuan E40</div>
+                      <div>Pengajuan F20</div>
+                      <div>Pengajuan F40</div>
+                      <div>ACC E20</div>
+                      <div>ACC E40</div>
+                      <div>ACC F20</div>
+                      <div>ACC F40</div>
+                      <div>Estimasi Cost 1 (Diajukan + Tidak Diajukan)</div>
+                      <div>Estimasi Cost 2 (ACC Pengajuan + Tidak TL)</div>
+                    </div>
+                    <div className="divide-y divide-amber-200">
+                      {ports.map((p) => {
+                        const pr = predictionsByPort[p.id];
+                        // Aggregate totals
+                        const pengTotal =
+                          (pr?.pengajuan.empty_20 ?? 0)
+                          + (pr?.pengajuan.empty_40 ?? 0)
+                          + (pr?.pengajuan.full_20 ?? 0)
+                          + (pr?.pengajuan.full_40 ?? 0);
+                        const accTotal =
+                          (pr?.acc.empty_20 ?? 0)
+                          + (pr?.acc.empty_40 ?? 0)
+                          + (pr?.acc.full_20 ?? 0)
+                          + (pr?.acc.full_40 ?? 0);
+                        const bongkarTotal =
+                          (row.bongkaran_empty_20dc || 0)
+                          + (row.bongkaran_empty_40hc || 0)
+                          + (row.bongkaran_full_20dc || 0)
+                          + (row.bongkaran_full_40hc || 0);
+                        const notSubmitted = Math.max(0, bongkarTotal - pengTotal);
+                        const notTL = Math.max(0, bongkarTotal - accTotal);
+                        // Note: Without rates, we display counts approximation
+                        const fallbackEst1 = Math.round(pengTotal + notSubmitted);
+                        const fallbackEst2 = Math.round(accTotal + notTL);
+                        const est1Raw = pr?.cost1 != null ? pr.cost1 : fallbackEst1;
+                        const est2Raw = pr?.cost2 != null ? pr.cost2 : fallbackEst2;
+                        return (
+                          <div key={p.id} className="grid grid-cols-11 gap-2 py-1 text-[11px] text-amber-900">
+                            <div className="font-medium truncate" title={p.name}>{p.name}</div>
+                            <div>{pr?.pengajuan.empty_20 != null ? Math.round(pr.pengajuan.empty_20) : '-'}</div>
+                            <div>{pr?.pengajuan.empty_40 != null ? Math.round(pr.pengajuan.empty_40) : '-'}</div>
+                            <div>{pr?.pengajuan.full_20 != null ? Math.round(pr.pengajuan.full_20) : '-'}</div>
+                            <div>{pr?.pengajuan.full_40 != null ? Math.round(pr.pengajuan.full_40) : '-'}</div>
+                            <div>{pr?.acc.empty_20 != null ? Math.round(pr.acc.empty_20) : '-'}</div>
+                            <div>{pr?.acc.empty_40 != null ? Math.round(pr.acc.empty_40) : '-'}</div>
+                            <div>{pr?.acc.full_20 != null ? Math.round(pr.acc.full_20) : '-'}</div>
+                            <div>{pr?.acc.full_40 != null ? Math.round(pr.acc.full_40) : '-'}</div>
+                            <div title={pr?.hasRate ? 'Estimasi Cost 1 (Diajukan + Tidak Diajukan)' : 'Estimasi Cost 1 (fallback count)'}>
+                              {pr?.hasRate ? formatIDR(est1Raw) : (isFinite(est1Raw) ? est1Raw : '-')}
+                            </div>
+                            <div title={pr?.hasRate ? 'Estimasi Cost 2 (ACC Pengajuan + Tidak TL)' : 'Estimasi Cost 2 (fallback count)'}>
+                              {pr?.hasRate ? formatIDR(est2Raw) : (isFinite(est2Raw) ? est2Raw : '-')}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <NumberInput label="Pengajuan Empty 20DC" value={pengajuanEmpty20} onChange={setPengajuanEmpty20} />
               <NumberInput label="Pengajuan Empty 40HC" value={pengajuanEmpty40} onChange={setPengajuanEmpty40} />
@@ -454,6 +669,18 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
             <div>
               <p className="text-slate-500">Berth Location</p>
               <p className="font-semibold">{row.port_name}</p>
+              {activeTab === 'pengajuan' && !row.port_name && (
+                <select
+                  value={selectedPortId}
+                  onChange={(e) => setSelectedPortId(e.target.value)}
+                  className="mt-1 rounded-md border border-slate-300 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="">Pilih Berth Location</option>
+                  {ports.map((p) => (
+                    <option key={p.id} value={String(p.id)}>{p.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
             <div>
               <p className="text-slate-500">Date Berth</p>
@@ -470,13 +697,13 @@ const EditContainerMovementModal: React.FC<EditContainerMovementModalProps> = ({
                   onClick={() => !tab.disabled && setActiveTab(tab.key)}
                   disabled={tab.disabled}
                   className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 ${
-                    activeTab === tab.key
-                      ? 'bg-emerald-600 hover:bg-emerald-800 text-white shadow'
-                      : 'bg-white border border-slate-300 text-slate-600'
-                  } ${
                     tab.disabled
                       ? 'opacity-60 cursor-not-allowed bg-slate-100 text-slate-400'
                       : 'hover:bg-slate-50'
+                  } ${
+                    activeTab === tab.key
+                      ? 'bg-emerald-600 hover:bg-emerald-800 text-white shadow'
+                      : 'bg-white border border-slate-300 text-slate-600'
                   }`}
                 >
                   {tab.disabled && <Lock size={12} />}
